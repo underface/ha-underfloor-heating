@@ -5,7 +5,8 @@
         "title": "Ogrzewanie Podłogowe - Konfiguracja instalacji",
         "description": "Zdefiniuj podstawową nazwę instalacji podłogówki.",
         "data": {
-          "name": "Nazwa instalacji"
+          "name": "Nazwa instalacji",
+          "initial_setup_mode": "Początkowy tryb instalacji"
         }
       }
     }
@@ -13,15 +14,49 @@
   "options": {
     "step": {
       "init": {
-        "title": "Zarządzanie instalacją podłogówki",
-        "description": "Wybierz czynność, którą chcesz wykonać:",
+        "title": "Zarządzanie instalacją: Rozdzielacze > Strefy > Pętle",
+        "description": "Wybierz działanie:",
         "data": {
-          "action": "Działanie"
+          "action": "Opcja konfiguracji"
         }
+      },
+      "zone_wizard": {
+        "title": "Krok 1: Dodaj strefę grzewczą (pomieszczenie)",
+        "description": "Wybierz rozdzielacz, do którego podłączone jest pomieszczenie, podaj metraż, parametry jastrychu oraz liczbę pętli:",
+        "data": {
+          "manifold_id": "Rozdzielacz (kondygnacja / szafka)",
+          "name": "Nazwa strefy (np. Salon, Kuchnia, Sypialnia)",
+          "area_m2": "Metraż / Powierzchnia pomieszczenia (m²)",
+          "screed_type": "Typ wylewki / jastrychu",
+          "screed_thickness_mm": "Grubość wylewki (mm)",
+          "loops_count": "Liczba pętli przypisana do tego pomieszczenia",
+          "spacing_cm": "Rozstaw rur PE",
+          "approach_length_m": "Odległość do rozdzielacza (m)"
+        }
+      },
+      "zone_loops_flows": {
+        "title": "Krok 2: Ustawienia przepływów rotametrów dla strefy {zone_name}",
+        "description": "Sugerowany przepływ projektowy na każdą pętlę to: {suggested_flow}.\nPodaj nastawy rotametrów (w l/h) dla poszczególnych pętli:"
+      },
+      "edit_zone_form": {
+        "title": "Edycja strefy",
+        "description": "Zmień metraż, typ/grubość wylewki lub liczbę pętli przypisanych do tej strefy:",
+        "data": {
+          "manifold_id": "Rozdzielacz",
+          "name": "Nazwa strefy",
+          "area_m2": "Metraż (m²)",
+          "screed_type": "Typ wylewki",
+          "screed_thickness_mm": "Grubość wylewki (mm)",
+          "loops_count": "Liczba pętli"
+        }
+      },
+      "edit_loops_flows_for_zone": {
+        "title": "Nastawy rotametrów dla strefy {zone_name}",
+        "description": "Podaj aktualne lub pożądane przepływy na rotametrach (l/h):"
       },
       "add_manifold": {
         "title": "Dodaj nowy rozdzielacz",
-        "description": "Wprowadź dane techniczne rozdzielacza obiegów grzewczych:",
+        "description": "Wprowadź dane techniczne rozdzielacza:",
         "data": {
           "id": "Identyfikator (unikalny, np. rozdzielacz_pietro)",
           "name": "Nazwa rozdzielacza",
@@ -29,37 +64,36 @@
           "sections_count": "Liczba sekcji (wyjść)"
         }
       },
-      "add_zone": {
-        "title": "Dodaj strefę grzewczą (pomieszczenie)",
-        "description": "Wprowadź parametry pomieszczenia, typ i grubość wylewki:",
+      "select_edit_manifold": {
+        "title": "Wybierz rozdzielacz do edycji",
+        "description": "Wybierz rozdzielacz:",
         "data": {
-          "id": "Identyfikator strefy (np. salon, kuchnia)",
-          "name": "Nazwa strefy",
-          "area_m2": "Powierzchnia strefy (m²)",
-          "screed_type": "Typ wylewki",
-          "screed_thickness_mm": "Grubość wylewki (mm)",
-          "floor_covering": "Rodzaj wykończenia podłogi",
-          "heat_load_w_m2": "Projektowe zapotrzebowanie cieplne (W/m²)",
-          "target_temp": "Docelowa temperatura pomieszczenia (°C)"
+          "manifold_id": "Rozdzielacz"
         }
       },
-      "add_loop": {
-        "title": "Dodaj pętlę podłogówki",
-        "description": "Powiąż pętlę z rozdzielaczem i strefą. Długość pętli zostanie automatycznie wyliczona:",
+      "edit_manifold_details": {
+        "title": "Edytuj parametry rozdzielacza",
+        "description": "Zmień nazwę, lokalizację lub liczbę sekcji:",
         "data": {
-          "id": "Identyfikator pętli (np. petla_salon_1)",
-          "name": "Nazwa pętli",
-          "manifold_id": "Rozdzielacz",
-          "zone_id": "Strefa / Pomieszczenie",
-          "section_number": "Numer sekcji na rozdzielaczu",
-          "pipe_type": "Średnica i rodzaj rury PE",
-          "spacing_cm": "Rozstaw rur (cm)",
-          "approach_length_m": "Odległość do rozdzielacza (m)",
-          "loops_in_zone": "Liczba pętli w tej strefie",
-          "rotameter_flow_lh": "Ustawienie rotametru (l/h)"
+          "name": "Nazwa",
+          "location": "Lokalizacja",
+          "sections_count": "Liczba sekcji"
+        }
+      },
+      "remove_zone": {
+        "title": "Usuń strefę",
+        "description": "Wybierz strefę do usunięcia (wszystkie powiązane z nią pętle również zostaną usunięte):",
+        "data": {
+          "zone_id": "Strefa do usunięcia"
+        }
+      },
+      "remove_manifold": {
+        "title": "Usuń rozdzielacz",
+        "description": "Wybierz rozdzielacz do usunięcia:",
+        "data": {
+          "manifold_id": "Rozdzielacz"
         }
       }
     }
   }
 }
-

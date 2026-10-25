@@ -271,10 +271,12 @@ class ZoneAreaSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_area")
         self.zone_id = zone_id
         self.z_data = z_data
+        manifold_link = (DOMAIN, f"manifold_{z_data.get('manifold_id')}") if z_data.get("manifold_id") else None
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
             name=f"Strefa: {z_data.get('name', zone_id)}",
             model="Strefa Ogrzewania Podłogowego",
+            via_device=manifold_link,
         )
 
     @property
@@ -329,10 +331,12 @@ class ZoneHeatOutputSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_heat_output")
         self.zone_id = zone_id
         self.z_data = z_data
+        manifold_link = (DOMAIN, f"manifold_{z_data.get('manifold_id')}") if z_data.get("manifold_id") else None
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
             name=f"Strefa: {z_data.get('name', zone_id)}",
             model="Strefa Ogrzewania Podłogowego",
+            via_device=manifold_link,
         )
 
     @property
@@ -453,7 +457,7 @@ class LoopEstimatedLengthSensor(BaseHeatingEntity):
             identifiers={(DOMAIN, f"loop_{loop_id}")},
             name=f"Pętla: {l_data.get('name', loop_id)}",
             model="Pętla Ogrzewania Podłogowego",
-            via_device=(DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
+            via_device=(DOMAIN, f"zone_{l_data.get('zone_id')}") if l_data.get("zone_id") else (DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
         )
 
     @property

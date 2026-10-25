@@ -5,7 +5,8 @@
         "title": "Underfloor Heating - Setup",
         "description": "Configure underfloor heating installation name.",
         "data": {
-          "name": "Installation name"
+          "name": "Installation name",
+          "initial_setup_mode": "Initial setup mode"
         }
       }
     }
@@ -13,53 +14,70 @@
   "options": {
     "step": {
       "init": {
-        "title": "Underfloor Heating Management",
-        "description": "Choose an action:",
+        "title": "Underfloor Heating: Manifold > Zone > Loops",
+        "description": "Choose action:",
         "data": {
-          "action": "Action"
+          "action": "Configuration action"
         }
       },
+      "zone_wizard": {
+        "title": "Step 1: Add heating zone (room)",
+        "description": "Select manifold, enter floor area, screed type/thickness, and loops count:",
+        "data": {
+          "manifold_id": "Manifold",
+          "name": "Zone Name (e.g. Living room, Kitchen)",
+          "area_m2": "Area (m²)",
+          "screed_type": "Screed Type",
+          "screed_thickness_mm": "Screed Thickness (mm)",
+          "loops_count": "Loops count for this room",
+          "spacing_cm": "Pipe Spacing (cm)",
+          "approach_length_m": "Distance to manifold (m)"
+        }
+      },
+      "zone_loops_flows": {
+        "title": "Step 2: Rotameter flow settings for {zone_name}",
+        "description": "Calculated design flow per loop: {suggested_flow}.\nEnter flow rates (in l/h) for each loop:"
+      },
+      "edit_zone_form": {
+        "title": "Edit Zone",
+        "description": "Modify area, screed, or loops count:",
+        "data": {
+          "manifold_id": "Manifold",
+          "name": "Zone Name",
+          "area_m2": "Area (m²)",
+          "screed_type": "Screed Type",
+          "screed_thickness_mm": "Screed Thickness (mm)",
+          "loops_count": "Loops count"
+        }
+      },
+      "edit_loops_flows_for_zone": {
+        "title": "Rotameter flow rates for {zone_name}",
+        "description": "Enter flow rates for each loop (l/h):"
+      },
       "add_manifold": {
-        "title": "Add new manifold",
+        "title": "Add Manifold",
         "description": "Enter manifold details:",
         "data": {
           "id": "Manifold ID",
           "name": "Manifold Name",
           "location": "Location",
-          "sections_count": "Number of sections"
+          "sections_count": "Sections count"
         }
       },
-      "add_zone": {
-        "title": "Add heating zone",
-        "description": "Enter zone properties and screed details:",
+      "remove_zone": {
+        "title": "Remove Zone",
+        "description": "Select zone to remove:",
         "data": {
-          "id": "Zone ID",
-          "name": "Zone Name",
-          "area_m2": "Area (m²)",
-          "screed_type": "Screed Type",
-          "screed_thickness_mm": "Screed Thickness (mm)",
-          "floor_covering": "Floor Covering",
-          "heat_load_w_m2": "Heat Load (W/m²)",
-          "target_temp": "Target Temperature (°C)"
+          "zone_id": "Zone"
         }
       },
-      "add_loop": {
-        "title": "Add heating loop",
-        "description": "Assign loop to manifold and zone:",
+      "remove_manifold": {
+        "title": "Remove Manifold",
+        "description": "Select manifold to remove:",
         "data": {
-          "id": "Loop ID",
-          "name": "Loop Name",
-          "manifold_id": "Manifold",
-          "zone_id": "Zone",
-          "section_number": "Section Number",
-          "pipe_type": "Pipe Type",
-          "spacing_cm": "Pipe Spacing (cm)",
-          "approach_length_m": "Approach Length (m)",
-          "loops_in_zone": "Loops count in zone",
-          "rotameter_flow_lh": "Rotameter flow (l/h)"
+          "manifold_id": "Manifold"
         }
       }
     }
   }
 }
-

@@ -68,7 +68,7 @@ class BaseRotameterNumber(NumberEntity):
             identifiers={(DOMAIN, f"loop_{loop_id}")},
             name=f"Pętla: {l_data.get('name', loop_id)}",
             model="Pętla Ogrzewania Podłogowego",
-            via_device=(DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
+            via_device=(DOMAIN, f"zone_{l_data.get('zone_id')}") if l_data.get("zone_id") else (DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
         )
 
     async def async_added_to_hass(self) -> None:

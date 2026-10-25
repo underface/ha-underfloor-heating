@@ -9,7 +9,7 @@ from typing import Final
 DOMAIN: Final = "underfloor_heating"
 
 # Wersja wtyczki
-INTEGRATION_VERSION: Final = "1.0.4"
+INTEGRATION_VERSION: Final = "1.0.5"
 
 # Domyślne wartości konfiguracyjne
 DEFAULT_NAME: Final = "Podłogówka"

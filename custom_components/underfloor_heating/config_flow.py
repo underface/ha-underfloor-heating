@@ -1,10 +1,11 @@
-"""Kreator konfiguracji (Config Flow & Options Flow) dla integracji Ogrzewanie Podłogowe.
+"""Kreator konfiguracji w naturalnej hierarchii: Rozdzielacz > Strefa > Pętle.
 
-Umożliwia pełne konfigurowanie i modyfikację rozdzielaczy, stref grzewczych,
-typów wylewek oraz pętli podłogówki zarówno przy pierwszym uruchomieniu,
-jak i w dowolnym momencie po dodaniu integracji w Home Assistant.
+Umożliwia proste i intuicyjne dodawanie oraz edycję ogrzewania podłogowego:
+1. Rozdzielacz (kondygnacja / szafka)
+2. Strefa (pomieszczenie, metraż m², typ i grubość jastrychu, liczba pętli)
+3. Pętle strefy (automatyczne wygenerowanie z podaniem nastaw przepływu rotametrów l/h)
 
-Wersja: 1.0.4
+Wersja: 1.0.5
 """
 
 from __future__ import annotations
@@ -18,11 +19,12 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
-from .calculations import estimate_loop_length
+from .calculations import calculate_thermal_properties, estimate_loop_length
 from .const import (
     ATTR_APPROACH_LENGTH,
     ATTR_AREA,
     ATTR_FLOOR_COVERING,
+    ATTR_LOOP_ID,
     ATTR_NAME,
     ATTR_PIPE_TYPE,
     ATTR_ROTAMETER_FLOW_LH,
@@ -46,12 +48,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Obsługa kreatora dodawania integracji Underfloor Heating."""
+    """Kreator pierwszego dodawania integracji."""
 
     VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Pierwszy krok konfiguracji integracji."""
+        """Krok 1: Podstawowa nazwa instalacji."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -60,7 +62,7 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if init_mode == "demo":
                 default_manifold_id = "parter"
-                default_zone_id = "biuro"
+                default_zone_id = "salon"
 
                 initial_data = {
                     CONF_MANIFOLDS: {
@@ -72,18 +74,20 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                     CONF_ZONES: {
                         default_zone_id: {
-                            "name": "Biuro",
-                            "area_m2": 25.0,
-                            "screed_type": "anhydrite",
+                            "name": "Salon",
+                            "manifold_id": default_manifold_id,
+                            "area_m2": 37.0,
+                            "screed_type": "cement",
                             "screed_thickness_mm": 50.0,
-                            "floor_covering": "tiles",
+                            "loops_count": 2,
+                            "floor_covering": "laminate",
                             "heat_load_w_m2": 45.0,
                             "target_temp": 21.5,
                         }
                     },
                     CONF_LOOPS: {
-                        "petla_biuro_1": {
-                            "name": "Biuro Pętla 1",
+                        "petla_salon_1": {
+                            "name": "Salon - Pętla 1",
                             "manifold_id": default_manifold_id,
                             "zone_id": default_zone_id,
                             "section_number": 1,
@@ -93,14 +97,14 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             "loops_in_zone": 2,
                             ATTR_ROTAMETER_FLOW_LH: 110.0,
                         },
-                        "petla_biuro_2": {
-                            "name": "Biuro Pętla 2",
+                        "petla_salon_2": {
+                            "name": "Salon - Pętla 2",
                             "manifold_id": default_manifold_id,
                             "zone_id": default_zone_id,
                             "section_number": 2,
                             "pipe_type": "pex_16x2",
                             "spacing_cm": 15.0,
-                            "approach_length_m": 5.0,
+                            "approach_length_m": 4.0,
                             "loops_in_zone": 2,
                             ATTR_ROTAMETER_FLOW_LH: 110.0,
                         },
@@ -118,8 +122,8 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(ATTR_NAME, default=DEFAULT_NAME): str,
                 vol.Required("initial_setup_mode", default="demo"): vol.In(
                     {
-                        "demo": "Utwórz przykładowy rozdzielacz i strefę (zalecane na start)",
-                        "empty": "Czysta instalacja (skonfiguruję ręcznie od podstaw)",
+                        "demo": "Utwórz domyślny rozdzielacz i strefę",
+                        "empty": "Czysta instalacja (skonfiguruję własne strefy)",
                     }
                 ),
             }
@@ -135,10 +139,9 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
-    """Zarządzanie dodawaniem, edycją i usuwaniem rozdzielaczy, stref i pętli w dowolnym momencie."""
+    """Zarządzanie hierarchią: Rozdzielacz > Strefa > Pętle."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Inicjalizacja procedury edycji opcji."""
         try:
             super().__init__(config_entry)
         except TypeError:
@@ -148,33 +151,28 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
         self.options.setdefault(CONF_MANIFOLDS, {})
         self.options.setdefault(CONF_ZONES, {})
         self.options.setdefault(CONF_LOOPS, {})
-        self._selected_item_id: str | None = None
+
+        # Pamięć podręczna kreatora strefy
+        self._temp_zone_data: dict[str, Any] = {}
+        self._selected_zone_id: str | None = None
+        self._selected_manifold_id: str | None = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Główne menu edycji konfiguracji podłogówki."""
+        """Główne, proste menu zarządzania instalacją."""
         actions = {
-            "add_loop": "➕ Dodaj nową pętlę podłogówki",
-            "edit_loop": "🔧 Edytuj parametry pętli (rozstaw, rotametr, rura)",
-            "remove_loop": "🗑️ Usuń pętlę podłogówki",
-            "add_zone": "🏠 Dodaj nową strefę (pomieszczenie, metraż m², wylewka)",
-            "edit_zone": "✏️ Edytuj strefę (zmień powierzchnię m², wylewkę)",
-            "remove_zone": "🗑️ Usuń strefę / pomieszczenie",
+            "add_zone": "➕ Dodaj strefę (metraż, jastrych, liczba pętli, przepływy)",
+            "edit_zone": "✏️ Edytuj strefę (zmień metraż, jastrych, pętle lub przepływy)",
+            "remove_zone": "🗑️ Usuń strefę",
             "add_manifold": "🎛️ Dodaj nowy rozdzielacz",
             "edit_manifold": "⚙️ Edytuj rozdzielacz",
             "remove_manifold": "🗑️ Usuń rozdzielacz",
-            "view_summary": "💾 Zapisz i zastosuj wszystkie zmiany",
+            "save": "💾 Zapisz i zastosuj zmiany",
         }
 
         if user_input is not None:
             choice = user_input.get("action")
-            if choice == "add_loop":
-                return await self.async_step_add_loop()
-            if choice == "edit_loop":
-                return await self.async_step_select_edit_loop()
-            if choice == "remove_loop":
-                return await self.async_step_remove_loop()
             if choice == "add_zone":
-                return await self.async_step_add_zone()
+                return await self.async_step_zone_wizard()
             if choice == "edit_zone":
                 return await self.async_step_select_edit_zone()
             if choice == "remove_zone":
@@ -189,218 +187,263 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
-                vol.Required("action", default="edit_zone"): vol.In(actions),
+                vol.Required("action", default="add_zone"): vol.In(actions),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
 
-    # ================= STREFY / POMIESZCZENIA =================
+    # ================= KREATOR STREFY (Rozdzielacz > Strefa > Pętle) =================
 
-    async def async_step_add_zone(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Formularz dodawania strefy podłogówki (z wylewką i metrażem)."""
+    async def async_step_zone_wizard(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Krok 1 dodawania strefy: Wybór rozdzielacza, metraż, typ i grubość jastrychu oraz liczba pętli."""
         errors: dict[str, str] = {}
+        manifolds = {m_id: m_data["name"] for m_id, m_data in self.options[CONF_MANIFOLDS].items()}
+
+        # Jeśli brak rozdzielacza, najpierw utwórz rozdzielacz
+        if not manifolds:
+            self.options[CONF_MANIFOLDS]["parter"] = {
+                "name": "Rozdzielacz Parter",
+                "location": "Kotłownia / Parter",
+                "sections_count": 8,
+            }
+            manifolds = {"parter": "Rozdzielacz Parter"}
+
         screed_choices = {k: v["name"] for k, v in SCREED_TYPES.items()}
-        covering_choices = {k: v["name"] for k, v in FLOOR_COVERINGS.items()}
+        spacing_choices = {10.0: "10 cm (zagęszczony)", 15.0: "15 cm (standard)", 20.0: "20 cm (rzadki)"}
 
         if user_input is not None:
-            z_id = user_input["id"].strip().lower().replace(" ", "_")
-            self.options[CONF_ZONES][z_id] = {
-                "name": user_input["name"],
+            zone_name = user_input["name"].strip()
+            z_id = zone_name.lower().replace(" ", "_").replace("ł", "l").replace("ą", "a").replace("ę", "e").replace("ó", "o")
+            # Unikalność ID
+            base_id = z_id
+            counter = 1
+            while z_id in self.options[CONF_ZONES]:
+                z_id = f"{base_id}_{counter}"
+                counter += 1
+
+            self._temp_zone_data = {
+                "id": z_id,
+                "name": zone_name,
+                "manifold_id": user_input["manifold_id"],
                 "area_m2": float(user_input["area_m2"]),
                 "screed_type": user_input["screed_type"],
                 "screed_thickness_mm": float(user_input["screed_thickness_mm"]),
-                "floor_covering": user_input["floor_covering"],
-                "heat_load_w_m2": float(user_input.get("heat_load_w_m2", 45.0)),
-                "target_temp": float(user_input.get("target_temp", 21.0)),
+                "loops_count": int(user_input["loops_count"]),
+                "spacing_cm": float(user_input.get("spacing_cm", 15.0)),
+                "approach_length_m": float(user_input.get("approach_length_m", 4.0)),
+                "floor_covering": "tiles",
+                "heat_load_w_m2": 45.0,
+                "target_temp": 21.5,
             }
-            return await self.async_step_init()
+
+            # Przejście do kroku podania przepływów dla pętli
+            return await self.async_step_zone_loops_flows()
 
         schema = vol.Schema(
             {
-                vol.Required("id", default="salon_parter"): str,
+                vol.Required("manifold_id", default=list(manifolds.keys())[0]): vol.In(manifolds),
                 vol.Required("name", default="Salon"): str,
-                vol.Required("area_m2", default=35.0): vol.Coerce(float),
-                vol.Required("screed_type", default="anhydrite"): vol.In(screed_choices),
+                vol.Required("area_m2", default=37.0): vol.Coerce(float),
+                vol.Required("screed_type", default="cement"): vol.In(screed_choices),
                 vol.Required("screed_thickness_mm", default=50.0): vol.Coerce(float),
-                vol.Required("floor_covering", default="tiles"): vol.In(covering_choices),
-                vol.Optional("heat_load_w_m2", default=45.0): vol.Coerce(float),
-                vol.Optional("target_temp", default=21.5): vol.Coerce(float),
+                vol.Required("loops_count", default=2): vol.All(vol.Coerce(int), vol.Range(min=1, max=10)),
+                vol.Optional("spacing_cm", default=15.0): vol.In(spacing_choices),
+                vol.Optional("approach_length_m", default=4.0): vol.Coerce(float),
             }
         )
-        return self.async_show_form(step_id="add_zone", data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="zone_wizard", data_schema=schema, errors=errors)
+
+    async def async_step_zone_loops_flows(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Krok 2: Wskazanie przepływu rotametrów dla każdej z pętli nowej strefy."""
+        z = self._temp_zone_data
+        loops_cnt = z.get("loops_count", 1)
+        area = z.get("area_m2", 20.0)
+
+        # Wyliczenie sugerowanego przepływu projektowego na pętlę
+        therm = calculate_thermal_properties(area, z.get("screed_type", "cement"), z.get("screed_thickness_mm", 50.0))
+        suggested_flow_lh = round(therm["required_flow_lh"] / float(loops_cnt), 0)
+
+        if user_input is not None:
+            z_id = z["id"]
+            # 1. Zapis strefy
+            self.options[CONF_ZONES][z_id] = {
+                "name": z["name"],
+                "manifold_id": z["manifold_id"],
+                "area_m2": z["area_m2"],
+                "screed_type": z["screed_type"],
+                "screed_thickness_mm": z["screed_thickness_mm"],
+                "loops_count": loops_cnt,
+                "floor_covering": z.get("floor_covering", "tiles"),
+                "heat_load_w_m2": 45.0,
+                "target_temp": 21.5,
+            }
+
+            # 2. Utworzenie pętli
+            for i in range(1, loops_cnt + 1):
+                loop_id = f"petla_{z_id}_{i}"
+                flow_val = float(user_input.get(f"flow_loop_{i}", suggested_flow_lh))
+                self.options[CONF_LOOPS][loop_id] = {
+                    "name": f"{z['name']} - Pętla {i}",
+                    "manifold_id": z["manifold_id"],
+                    "zone_id": z_id,
+                    "section_number": len([l for l in self.options[CONF_LOOPS].values() if l.get("manifold_id") == z["manifold_id"]]) + 1,
+                    "pipe_type": DEFAULT_PIPE_TYPE,
+                    "spacing_cm": z.get("spacing_cm", 15.0),
+                    "approach_length_m": z.get("approach_length_m", 4.0),
+                    "loops_in_zone": loops_cnt,
+                    ATTR_ROTAMETER_FLOW_LH: flow_val,
+                }
+
+            return await self.async_step_init()
+
+        # Budowa dynamicznego formularza z przepływami dla każdej pętli
+        fields = {}
+        for i in range(1, loops_cnt + 1):
+            fields[vol.Required(f"flow_loop_{i}", default=suggested_flow_lh)] = vol.Coerce(float)
+
+        schema = vol.Schema(fields)
+        return self.async_show_form(
+            step_id="zone_loops_flows",
+            data_schema=schema,
+            description_placeholders={
+                "zone_name": z["name"],
+                "suggested_flow": f"{suggested_flow_lh} l/h ({round(suggested_flow_lh/60.0, 2)} l/min)",
+                "loops_count": str(loops_cnt),
+            },
+        )
+
+    # ================= EDYCJA STREFY I PĘTLI =================
 
     async def async_step_select_edit_zone(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Wybór strefy do edycji metrażu lub wylewki."""
-        zones = {z_id: f"{z['name']} (obecnie: {z.get('area_m2', 0)} m²)" for z_id, z in self.options[CONF_ZONES].items()}
+        """Wybór strefy do edycji."""
+        zones = {z_id: f"{z['name']} ({z.get('area_m2', 0)} m², {z.get('loops_count', len([l for l in self.options[CONF_LOOPS].values() if l.get('zone_id') == z_id]))} pętli)" for z_id, z in self.options[CONF_ZONES].items()}
         if not zones:
             return await self.async_step_init()
 
         if user_input is not None:
-            self._selected_item_id = user_input["zone_id"]
-            return await self.async_step_edit_zone_details()
+            self._selected_zone_id = user_input["zone_id"]
+            return await self.async_step_edit_zone_form()
 
         schema = vol.Schema({vol.Required("zone_id"): vol.In(zones)})
         return self.async_show_form(step_id="select_edit_zone", data_schema=schema)
 
-    async def async_step_edit_zone_details(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Formularz edycji parametrów wybranej strefy (powierzchnia, wylewka itp.)."""
-        z_id = self._selected_item_id
+    async def async_step_edit_zone_form(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Formularz edycji strefy: zmiana metrażu, jastrychu, grubości, rozstawu i przepływów."""
+        z_id = self._selected_zone_id
         z_data = self.options[CONF_ZONES].get(z_id, {})
         screed_choices = {k: v["name"] for k, v in SCREED_TYPES.items()}
-        covering_choices = {k: v["name"] for k, v in FLOOR_COVERINGS.items()}
+        manifolds = {m_id: m_data["name"] for m_id, m_data in self.options[CONF_MANIFOLDS].items()}
+
+        # Znajdź pętle należące do tej strefy
+        existing_loops = [l_id for l_id, l in self.options[CONF_LOOPS].items() if l.get("zone_id") == z_id]
+        current_loops_cnt = max(len(existing_loops), int(z_data.get("loops_count", 1)))
 
         if user_input is not None:
-            self.options[CONF_ZONES][z_id] = {
+            new_area = float(user_input["area_m2"])
+            new_screed = user_input["screed_type"]
+            new_thickness = float(user_input["screed_thickness_mm"])
+            new_loops_cnt = int(user_input["loops_count"])
+            new_manifold = user_input["manifold_id"]
+
+            # Aktualizacja danych strefy
+            self.options[CONF_ZONES][z_id].update({
                 "name": user_input["name"],
-                "area_m2": float(user_input["area_m2"]),
-                "screed_type": user_input["screed_type"],
-                "screed_thickness_mm": float(user_input["screed_thickness_mm"]),
-                "floor_covering": user_input["floor_covering"],
-                "heat_load_w_m2": float(user_input.get("heat_load_w_m2", 45.0)),
-                "target_temp": float(user_input.get("target_temp", 21.0)),
-            }
-            return await self.async_step_init()
+                "manifold_id": new_manifold,
+                "area_m2": new_area,
+                "screed_type": new_screed,
+                "screed_thickness_mm": new_thickness,
+                "loops_count": new_loops_cnt,
+            })
+
+            # Dopasowanie liczby pętli
+            if new_loops_cnt != len(existing_loops):
+                # Jeśli zwiększono liczbę pętli, dodaj brakujące
+                if new_loops_cnt > len(existing_loops):
+                    for i in range(len(existing_loops) + 1, new_loops_cnt + 1):
+                        new_loop_id = f"petla_{z_id}_{i}"
+                        self.options[CONF_LOOPS][new_loop_id] = {
+                            "name": f"{user_input['name']} - Pętla {i}",
+                            "manifold_id": new_manifold,
+                            "zone_id": z_id,
+                            "section_number": i,
+                            "pipe_type": DEFAULT_PIPE_TYPE,
+                            "spacing_cm": 15.0,
+                            "approach_length_m": 4.0,
+                            "loops_in_zone": new_loops_cnt,
+                            ATTR_ROTAMETER_FLOW_LH: 100.0,
+                        }
+                # Jeśli zmniejszono, usuń nadmiarowe
+                elif new_loops_cnt < len(existing_loops):
+                    for l_to_del in existing_loops[new_loops_cnt:]:
+                        self.options[CONF_LOOPS].pop(l_to_del, None)
+
+            # Aktualizacja liczby pętli we wszystkich pętlach strefy
+            for l_id, l in self.options[CONF_LOOPS].items():
+                if l.get("zone_id") == z_id:
+                    l["loops_in_zone"] = new_loops_cnt
+                    l["manifold_id"] = new_manifold
+
+            return await self.async_step_edit_loops_flows_for_zone()
 
         schema = vol.Schema(
             {
-                vol.Required("name", default=z_data.get("name", z_id)): str,
-                vol.Required("area_m2", default=float(z_data.get("area_m2", 20.0))): vol.Coerce(float),
+                vol.Required("manifold_id", default=z_data.get("manifold_id", list(manifolds.keys())[0])): vol.In(manifolds),
+                vol.Required("name", default=z_data.get("name", "Strefa")): str,
+                vol.Required("area_m2", default=float(z_data.get("area_m2", 25.0))): vol.Coerce(float),
                 vol.Required("screed_type", default=z_data.get("screed_type", "cement")): vol.In(screed_choices),
-                vol.Required("screed_thickness_mm", default=float(z_data.get("screed_thickness_mm", 65.0))): vol.Coerce(float),
-                vol.Required("floor_covering", default=z_data.get("floor_covering", "tiles")): vol.In(covering_choices),
-                vol.Optional("heat_load_w_m2", default=float(z_data.get("heat_load_w_m2", 45.0))): vol.Coerce(float),
-                vol.Optional("target_temp", default=float(z_data.get("target_temp", 21.0))): vol.Coerce(float),
+                vol.Required("screed_thickness_mm", default=float(z_data.get("screed_thickness_mm", 50.0))): vol.Coerce(float),
+                vol.Required("loops_count", default=current_loops_cnt): vol.All(vol.Coerce(int), vol.Range(min=1, max=10)),
             }
         )
-        return self.async_show_form(step_id="edit_zone_details", data_schema=schema)
+        return self.async_show_form(step_id="edit_zone_form", data_schema=schema)
+
+    async def async_step_edit_loops_flows_for_zone(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Krok edycji przepływów rotametrów dla strefy."""
+        z_id = self._selected_zone_id
+        z = self.options[CONF_ZONES].get(z_id, {})
+        zone_loops = {l_id: l for l_id, l in self.options[CONF_LOOPS].items() if l.get("zone_id") == z_id}
+
+        if user_input is not None:
+            for l_id, l in zone_loops.items():
+                if l_id in user_input:
+                    l[ATTR_ROTAMETER_FLOW_LH] = float(user_input[l_id])
+            return await self.async_step_init()
+
+        fields = {}
+        for l_id, l in zone_loops.items():
+            curr_flow = float(l.get(ATTR_ROTAMETER_FLOW_LH, 90.0))
+            fields[vol.Required(l_id, default=curr_flow)] = vol.Coerce(float)
+
+        schema = vol.Schema(fields)
+        return self.async_show_form(
+            step_id="edit_loops_flows_for_zone",
+            data_schema=schema,
+            description_placeholders={"zone_name": z.get("name", "Strefa")},
+        )
 
     async def async_step_remove_zone(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Usunięcie strefy."""
+        """Usunięcie strefy wraz ze wszystkimi jej pętlami."""
         zones = {z_id: f"{z['name']} ({z.get('area_m2', 0)} m²)" for z_id, z in self.options[CONF_ZONES].items()}
         if not zones:
             return await self.async_step_init()
 
         if user_input is not None:
             z_id = user_input["zone_id"]
+            # Usuń pętle strefy
+            loops_to_del = [l_id for l_id, l in self.options[CONF_LOOPS].items() if l.get("zone_id") == z_id]
+            for l_id in loops_to_del:
+                self.options[CONF_LOOPS].pop(l_id, None)
+            # Usuń strefę
             self.options[CONF_ZONES].pop(z_id, None)
             return await self.async_step_init()
 
         schema = vol.Schema({vol.Required("zone_id"): vol.In(zones)})
         return self.async_show_form(step_id="remove_zone", data_schema=schema)
 
-    # ================= PĘTLE PODŁOGÓWKI =================
-
-    async def async_step_add_loop(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Formularz dodawania pętli podłogówki."""
-        errors: dict[str, str] = {}
-        manifolds = {m_id: data["name"] for m_id, data in self.options[CONF_MANIFOLDS].items()}
-        zones = {z_id: f"{data['name']} ({data.get('area_m2', 0)} m²)" for z_id, data in self.options[CONF_ZONES].items()}
-        pipe_choices = {k: v["name"] for k, v in PIPE_TYPES.items()}
-
-        if not manifolds or not zones:
-            errors["base"] = "Najpierw musisz dodać co najmniej jeden rozdzielacz i jedną strefę."
-            return await self.async_step_init()
-
-        if user_input is not None:
-            l_id = user_input["id"].strip().lower().replace(" ", "_")
-            self.options[CONF_LOOPS][l_id] = {
-                "name": user_input["name"],
-                "manifold_id": user_input["manifold_id"],
-                "zone_id": user_input["zone_id"],
-                "section_number": int(user_input.get("section_number", 1)),
-                "pipe_type": user_input["pipe_type"],
-                "spacing_cm": float(user_input["spacing_cm"]),
-                "approach_length_m": float(user_input["approach_length_m"]),
-                "loops_in_zone": int(user_input.get("loops_in_zone", 1)),
-                ATTR_ROTAMETER_FLOW_LH: float(user_input.get(ATTR_ROTAMETER_FLOW_LH, 90.0)),
-            }
-            return await self.async_step_init()
-
-        schema = vol.Schema(
-            {
-                vol.Required("id", default=f"petla_{len(self.options[CONF_LOOPS]) + 1}"): str,
-                vol.Required("name", default=f"Pętla {len(self.options[CONF_LOOPS]) + 1}"): str,
-                vol.Required("manifold_id"): vol.In(manifolds),
-                vol.Required("zone_id"): vol.In(zones),
-                vol.Required("section_number", default=len(self.options[CONF_LOOPS]) + 1): vol.Coerce(int),
-                vol.Required("pipe_type", default=DEFAULT_PIPE_TYPE): vol.In(pipe_choices),
-                vol.Required("spacing_cm", default=DEFAULT_PIPE_SPACING_CM): vol.Coerce(float),
-                vol.Required("approach_length_m", default=DEFAULT_APPROACH_LENGTH_M): vol.Coerce(float),
-                vol.Required("loops_in_zone", default=1): vol.Coerce(int),
-                vol.Required(ATTR_ROTAMETER_FLOW_LH, default=95.0): vol.Coerce(float),
-            }
-        )
-        return self.async_show_form(step_id="add_loop", data_schema=schema, errors=errors)
-
-    async def async_step_select_edit_loop(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Wybór pętli do edycji parametrów."""
-        loops = {l_id: f"{l['name']} (Sekcja {l.get('section_number', '?')})" for l_id, l in self.options[CONF_LOOPS].items()}
-        if not loops:
-            return await self.async_step_init()
-
-        if user_input is not None:
-            self._selected_item_id = user_input["loop_id"]
-            return await self.async_step_edit_loop_details()
-
-        schema = vol.Schema({vol.Required("loop_id"): vol.In(loops)})
-        return self.async_show_form(step_id="select_edit_loop", data_schema=schema)
-
-    async def async_step_edit_loop_details(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Edycja parametrów pętli (rozstaw, rura, podejście, rotametr)."""
-        l_id = self._selected_item_id
-        l_data = self.options[CONF_LOOPS].get(l_id, {})
-        manifolds = {m_id: data["name"] for m_id, data in self.options[CONF_MANIFOLDS].items()}
-        zones = {z_id: f"{data['name']} ({data.get('area_m2', 0)} m²)" for z_id, data in self.options[CONF_ZONES].items()}
-        pipe_choices = {k: v["name"] for k, v in PIPE_TYPES.items()}
-
-        if user_input is not None:
-            self.options[CONF_LOOPS][l_id] = {
-                "name": user_input["name"],
-                "manifold_id": user_input["manifold_id"],
-                "zone_id": user_input["zone_id"],
-                "section_number": int(user_input.get("section_number", 1)),
-                "pipe_type": user_input["pipe_type"],
-                "spacing_cm": float(user_input["spacing_cm"]),
-                "approach_length_m": float(user_input["approach_length_m"]),
-                "loops_in_zone": int(user_input.get("loops_in_zone", 1)),
-                ATTR_ROTAMETER_FLOW_LH: float(user_input.get(ATTR_ROTAMETER_FLOW_LH, 90.0)),
-            }
-            return await self.async_step_init()
-
-        schema = vol.Schema(
-            {
-                vol.Required("name", default=l_data.get("name", l_id)): str,
-                vol.Required("manifold_id", default=l_data.get("manifold_id")): vol.In(manifolds),
-                vol.Required("zone_id", default=l_data.get("zone_id")): vol.In(zones),
-                vol.Required("section_number", default=int(l_data.get("section_number", 1))): vol.Coerce(int),
-                vol.Required("pipe_type", default=l_data.get("pipe_type", DEFAULT_PIPE_TYPE)): vol.In(pipe_choices),
-                vol.Required("spacing_cm", default=float(l_data.get("spacing_cm", 15.0))): vol.Coerce(float),
-                vol.Required("approach_length_m", default=float(l_data.get("approach_length_m", 4.0))): vol.Coerce(float),
-                vol.Required("loops_in_zone", default=int(l_data.get("loops_in_zone", 1))): vol.Coerce(int),
-                vol.Required(ATTR_ROTAMETER_FLOW_LH, default=float(l_data.get(ATTR_ROTAMETER_FLOW_LH, 90.0))): vol.Coerce(float),
-            }
-        )
-        return self.async_show_form(step_id="edit_loop_details", data_schema=schema)
-
-    async def async_step_remove_loop(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Usunięcie pętli."""
-        loops = {l_id: f"{l['name']} (Sekcja {l.get('section_number', '?')})" for l_id, l in self.options[CONF_LOOPS].items()}
-        if not loops:
-            return await self.async_step_init()
-
-        if user_input is not None:
-            l_id = user_input["loop_id"]
-            self.options[CONF_LOOPS].pop(l_id, None)
-            return await self.async_step_init()
-
-        schema = vol.Schema({vol.Required("loop_id"): vol.In(loops)})
-        return self.async_show_form(step_id="remove_loop", data_schema=schema)
-
     # ================= ROZDZIELACZE =================
 
     async def async_step_add_manifold(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Formularz dodawania rozdzielacza."""
-        errors: dict[str, str] = {}
         if user_input is not None:
             m_id = user_input["id"].strip().lower().replace(" ", "_")
             self.options[CONF_MANIFOLDS][m_id] = {
@@ -412,22 +455,22 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
-                vol.Required("id", default="rozdzielacz_pietro"): str,
-                vol.Required("name", default="Rozdzielacz Piętro"): str,
-                vol.Optional("location", default="Garderoba / Piętro"): str,
+                vol.Required("id", default=f"rozdzielacz_{len(self.options[CONF_MANIFOLDS]) + 1}"): str,
+                vol.Required("name", default=f"Rozdzielacz {len(self.options[CONF_MANIFOLDS]) + 1}"): str,
+                vol.Optional("location", default="Kotłownia"): str,
                 vol.Required("sections_count", default=8): vol.Coerce(int),
             }
         )
-        return self.async_show_form(step_id="add_manifold", data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="add_manifold", data_schema=schema)
 
     async def async_step_select_edit_manifold(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Wybór rozdzielacza do edycji."""
-        manifolds = {m_id: f"{m['name']} ({m.get('sections_count', 8)} sekcji)" for m_id, m in self.options[CONF_MANIFOLDS].items()}
+        manifolds = {m_id: m_data["name"] for m_id, m_data in self.options[CONF_MANIFOLDS].items()}
         if not manifolds:
             return await self.async_step_init()
 
         if user_input is not None:
-            self._selected_item_id = user_input["manifold_id"]
+            self._selected_manifold_id = user_input["manifold_id"]
             return await self.async_step_edit_manifold_details()
 
         schema = vol.Schema({vol.Required("manifold_id"): vol.In(manifolds)})
@@ -435,7 +478,7 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_edit_manifold_details(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Edycja parametrów rozdzielacza."""
-        m_id = self._selected_item_id
+        m_id = self._selected_manifold_id
         m_data = self.options[CONF_MANIFOLDS].get(m_id, {})
 
         if user_input is not None:
@@ -457,7 +500,7 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_remove_manifold(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Usunięcie rozdzielacza."""
-        manifolds = {m_id: m['name'] for m_id, m in self.options[CONF_MANIFOLDS].items()}
+        manifolds = {m_id: m_data["name"] for m_id, m_data in self.options[CONF_MANIFOLDS].items()}
         if not manifolds:
             return await self.async_step_init()
 
