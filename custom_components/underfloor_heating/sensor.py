@@ -75,11 +75,13 @@ async def async_setup_entry(
         entities.append(ManifoldMaxPressureDropSensor(hass, entry, manifold_id, m_data))
         entities.append(ManifoldStatusSensor(hass, entry, manifold_id, m_data))
 
-    # 2. Sensory dla stref (wylewka, bezwładność, zapotrzebowanie)
+    # 2. Sensory dla stref (wylewka, bezwładność, zapotrzebowanie, metraż)
     for zone_id, z_data in data[CONF_ZONES].items():
+        entities.append(ZoneAreaSensor(hass, entry, zone_id, z_data))
         entities.append(ZoneHeatOutputSensor(hass, entry, zone_id, z_data))
         entities.append(ZoneRequiredFlowSensor(hass, entry, zone_id, z_data))
         entities.append(ZoneScreedInertiaSensor(hass, entry, zone_id, z_data))
+        entities.append(ZoneScreedInfoSensor(hass, entry, zone_id, z_data))
 
     # 3. Sensory dla pętli podłogówki (estymowana długość, opory, prędkości, status)
     for loop_id, l_data in data[CONF_LOOPS].items():
@@ -139,7 +141,6 @@ class ManifoldTotalFlowSensor(BaseHeatingEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"manifold_{manifold_id}")},
             name=m_data.get("name", manifold_id),
-            manufacturer="Antigravity",
             model="Rozdzielacz Ogrzewania Podłogowego",
             suggested_area=m_data.get("location", "Kotłownia"),
         )
@@ -258,6 +259,63 @@ class ManifoldStatusSensor(BaseHeatingEntity):
         return diag_m
 
 
+class ZoneAreaSensor(BaseHeatingEntity):
+    """Sensor powierzchni strefy / pomieszczenia w m²."""
+
+    _attr_name = "Powierzchnia"
+    _attr_native_unit_of_measurement = "m²"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:floor-plan"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, zone_id: str, z_data: dict) -> None:
+        super().__init__(hass, entry, f"zone_{zone_id}_area")
+        self.zone_id = zone_id
+        self.z_data = z_data
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"zone_{zone_id}")},
+            name=f"Strefa: {z_data.get('name', zone_id)}",
+            model="Strefa Ogrzewania Podłogowego",
+        )
+
+    @property
+    def native_value(self) -> float:
+        z = self.current_data[CONF_ZONES].get(self.zone_id, self.z_data)
+        return float(z.get(ATTR_AREA, 0.0))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        z = self.current_data[CONF_ZONES].get(self.zone_id, self.z_data)
+        return {
+            "zone_id": self.zone_id,
+            "target_temp_c": z.get("target_temp", 21.0),
+            "heat_load_w_m2": z.get("heat_load_w_m2", 45.0),
+            "floor_covering": z.get(ATTR_FLOOR_COVERING, "tiles"),
+        }
+
+
+class ZoneScreedInfoSensor(BaseHeatingEntity):
+    """Sensor typu i grubości wylewki strefy."""
+
+    _attr_name = "Typ i grubość wylewki"
+    _attr_icon = "mdi:layers-triple"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, zone_id: str, z_data: dict) -> None:
+        super().__init__(hass, entry, f"zone_{zone_id}_screed_info")
+        self.zone_id = zone_id
+        self.z_data = z_data
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"zone_{zone_id}")},
+        )
+
+    @property
+    def native_value(self) -> str:
+        z = self.current_data[CONF_ZONES].get(self.zone_id, self.z_data)
+        screed_type = z.get(ATTR_SCREED_TYPE, "cement")
+        thickness = z.get(ATTR_SCREED_THICKNESS, 65.0)
+        type_name = SCREED_TYPES.get(screed_type, {}).get("name", screed_type)
+        return f"{type_name} ({thickness} mm)"
+
+
 class ZoneHeatOutputSensor(BaseHeatingEntity):
     """Sensor mocy grzewczej strefy w Watach."""
 
@@ -274,7 +332,6 @@ class ZoneHeatOutputSensor(BaseHeatingEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
             name=f"Strefa: {z_data.get('name', zone_id)}",
-            manufacturer="Antigravity",
             model="Strefa Ogrzewania Podłogowego",
         )
 
@@ -395,7 +452,6 @@ class LoopEstimatedLengthSensor(BaseHeatingEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"loop_{loop_id}")},
             name=f"Pętla: {l_data.get('name', loop_id)}",
-            manufacturer="Antigravity",
             model="Pętla Ogrzewania Podłogowego",
             via_device=(DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
         )

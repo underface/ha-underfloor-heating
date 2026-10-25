@@ -67,7 +67,6 @@ class BaseRotameterNumber(NumberEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"loop_{loop_id}")},
             name=f"Pętla: {l_data.get('name', loop_id)}",
-            manufacturer="Antigravity",
             model="Pętla Ogrzewania Podłogowego",
             via_device=(DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
         )
