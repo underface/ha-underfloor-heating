@@ -26,7 +26,7 @@
 #### Option 1: HACS (Recommended)
 1. Open **HACS** in your Home Assistant interface.
 2. Click the top-right **three dots menu** and select **Custom repositories**.
-3. Paste the repository URL: `https://github.com/YOUR_USERNAME/ha-underfloor-heating`
+3. Paste the repository URL:  `https://github.com/underface/ha-underfloor-heating`
 4. Select Category: **Integration**.
 5. Click **Add**, locate **Underfloor Heating Manager** in the list, and select **Download**.
 6. Restart Home Assistant.
@@ -58,7 +58,7 @@
 #### Sposób 1: Przez HACS (Rekomendowany)
 1. Otwórz **HACS** w menu Home Assistant.
 2. W prawym górnym rogu kliknij menu **trzy kropki** i wybierz **Niestandardowe repozytoria** (*Custom repositories*).
-3. Wklej adres URL repozytorium: `https://github.com/TWOJ_NICK/ha-underfloor-heating`
+3. Wklej adres URL repozytorium: `https://github.com/underface/ha-underfloor-heating`
 4. Wybierz kategorię: **Integracja** (*Integration*).
 5. Kliknij **Dodaj** (*Add*), znajdź **Zarządzanie Ogrzewaniem Podłogowym** na liście i kliknij **Pobierz** (*Download*).
 6. Zrestartuj Home Assistant.
@@ -90,7 +90,7 @@
 #### Option 1: HACS (Empfohlen)
 1. Öffnen Sie **HACS** in Home Assistant.
 2. Klicken Sie oben rechts auf das **Drei-Punkte-Menü** und wählen Sie **Benutzerdefinierte Repositories**.
-3. Fügen Sie die Repository-URL ein: `https://github.com/IHR_BENUTZERNAME/ha-underfloor-heating`
+3. Fügen Sie die Repository-URL ein:  `https://github.com/underface/ha-underfloor-heating`
 4. Wählen Sie als Kategorie: **Integration**.
 5. Klicken Sie auf **Hinzufügen**, suchen Sie nach **Fußbodenheizungs-Manager** und wählen Sie **Herunterladen**.
 6. Starten Sie Home Assistant neu.
@@ -122,7 +122,7 @@
 #### Opción 1: Mediante HACS (Recomendado)
 1. Abra **HACS** en la interfaz de Home Assistant.
 2. Haga clic en el **menú de tres puntos** (arriba a la derecha) y seleccione **Repositorios personalizados** (*Custom repositories*).
-3. Introduzca la URL del repositorio: `https://github.com/SU_USUARIO/ha-underfloor-heating`
+3. Introduzca la URL del repositorio:  `https://github.com/underface/ha-underfloor-heating`
 4. Seleccione la categoría: **Integración** (*Integration*).
 5. Haga clic en **Añadir**, busque **Gestor de Suelo Radiante** en la lista y presione **Descargar**.
 6. Reinicie Home Assistant.
