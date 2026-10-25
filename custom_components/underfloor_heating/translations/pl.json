@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ogrzewanie Podłogowe - Konfiguracja instalacji",
+        "description": "Zdefiniuj podstawową nazwę instalacji podłogówki.",
+        "data": {
+          "name": "Nazwa instalacji"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Zarządzanie instalacją podłogówki",
+        "description": "Wybierz czynność, którą chcesz wykonać:",
+        "data": {
+          "action": "Działanie"
+        }
+      },
+      "add_manifold": {
+        "title": "Dodaj nowy rozdzielacz",
+        "description": "Wprowadź dane techniczne rozdzielacza obiegów grzewczych:",
+        "data": {
+          "id": "Identyfikator (unikalny, np. rozdzielacz_pietro)",
+          "name": "Nazwa rozdzielacza",
+          "location": "Lokalizacja (np. Kotłownia, Hol)",
+          "sections_count": "Liczba sekcji (wyjść)"
+        }
+      },
+      "add_zone": {
+        "title": "Dodaj strefę grzewczą (pomieszczenie)",
+        "description": "Wprowadź parametry pomieszczenia, typ i grubość wylewki:",
+        "data": {
+          "id": "Identyfikator strefy (np. salon, kuchnia)",
+          "name": "Nazwa strefy",
+          "area_m2": "Powierzchnia strefy (m²)",
+          "screed_type": "Typ wylewki",
+          "screed_thickness_mm": "Grubość wylewki (mm)",
+          "floor_covering": "Rodzaj wykończenia podłogi",
+          "heat_load_w_m2": "Projektowe zapotrzebowanie cieplne (W/m²)",
+          "target_temp": "Docelowa temperatura pomieszczenia (°C)"
+        }
+      },
+      "add_loop": {
+        "title": "Dodaj pętlę podłogówki",
+        "description": "Powiąż pętlę z rozdzielaczem i strefą. Długość pętli zostanie automatycznie wyliczona:",
+        "data": {
+          "id": "Identyfikator pętli (np. petla_salon_1)",
+          "name": "Nazwa pętli",
+          "manifold_id": "Rozdzielacz",
+          "zone_id": "Strefa / Pomieszczenie",
+          "section_number": "Numer sekcji na rozdzielaczu",
+          "pipe_type": "Średnica i rodzaj rury PE",
+          "spacing_cm": "Rozstaw rur (cm)",
+          "approach_length_m": "Odległość do rozdzielacza (m)",
+          "loops_in_zone": "Liczba pętli w tej strefie",
+          "rotameter_flow_lh": "Ustawienie rotametru (l/h)"
+        }
+      }
+    }
+  }
+}
+

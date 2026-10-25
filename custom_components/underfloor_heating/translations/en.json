@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Underfloor Heating - Setup",
+        "description": "Configure underfloor heating installation name.",
+        "data": {
+          "name": "Installation name"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Underfloor Heating Management",
+        "description": "Choose an action:",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "add_manifold": {
+        "title": "Add new manifold",
+        "description": "Enter manifold details:",
+        "data": {
+          "id": "Manifold ID",
+          "name": "Manifold Name",
+          "location": "Location",
+          "sections_count": "Number of sections"
+        }
+      },
+      "add_zone": {
+        "title": "Add heating zone",
+        "description": "Enter zone properties and screed details:",
+        "data": {
+          "id": "Zone ID",
+          "name": "Zone Name",
+          "area_m2": "Area (m²)",
+          "screed_type": "Screed Type",
+          "screed_thickness_mm": "Screed Thickness (mm)",
+          "floor_covering": "Floor Covering",
+          "heat_load_w_m2": "Heat Load (W/m²)",
+          "target_temp": "Target Temperature (°C)"
+        }
+      },
+      "add_loop": {
+        "title": "Add heating loop",
+        "description": "Assign loop to manifold and zone:",
+        "data": {
+          "id": "Loop ID",
+          "name": "Loop Name",
+          "manifold_id": "Manifold",
+          "zone_id": "Zone",
+          "section_number": "Section Number",
+          "pipe_type": "Pipe Type",
+          "spacing_cm": "Pipe Spacing (cm)",
+          "approach_length_m": "Approach Length (m)",
+          "loops_in_zone": "Loops count in zone",
+          "rotameter_flow_lh": "Rotameter flow (l/h)"
+        }
+      }
+    }
+  }
+}
+

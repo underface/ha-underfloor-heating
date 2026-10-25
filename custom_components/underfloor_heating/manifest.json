@@ -1,0 +1,13 @@
+{
+  "domain": "underfloor_heating",
+  "name": "Zarządzanie Ogrzewaniem Podłogowym",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://github.com/homeassistant/core",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@homeassistant"],
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/homeassistant/core/issues"
+}
+
