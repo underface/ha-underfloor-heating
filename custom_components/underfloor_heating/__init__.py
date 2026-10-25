@@ -97,7 +97,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator_data
 
     # Rejestracja platform (sensor, number, binary_sensor)
-    await hass.config_entries.async_forward_entry_set(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Rejestracja usługi serwisowej w Home Assistant: underfloor_heating.set_rotameter_flow
     async def handle_set_flow(call: ServiceCall) -> None:

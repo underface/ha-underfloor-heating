@@ -1,9 +1,89 @@
 /**
  * Underfloor Heating Lovelace Card (RWD)
- * Karta wizualizacji i kontroli rozdzielaczy, stref oraz rotametrów ogrzewania podłogowego.
+ * Wielojęzyczna karta wizualizacji i kontroli rozdzielaczy, stref oraz rotametrów podłogówki.
+ * Obsługuje automatyczne wykrywanie języka użytkownika w Home Assistant (PL, EN, DE, ES).
  *
  * Wersja: 1.0.0
  */
+
+const I18N = {
+  pl: {
+    manifold_title: "Rozdzielacz Podłogówki",
+    balanced: "Zrównoważony",
+    unbalanced: "Wymaga regulacji",
+    section: "Obwód",
+    required: "Wymagany",
+    scale: "Skala rotametru",
+    loop_length: "Długość pętli",
+    pressure_drop: "Spadek ciśnienia",
+    screed: "Wylewka",
+    inertia: "Bezwładność",
+    status_optimal: "Optymalny",
+    status_underflow: "Zdławiony",
+    status_overflow: "Przewymiarowany",
+    status_critical: "Krytyczny",
+    warn_underflow: "Przepływ zdławiony. Otwórz rotametr.",
+    warn_overflow: "Zbyt duży przepływ. Pętla zabiera przepływ innym.",
+    warn_length: "Długość przekracza dopuszczalny limit dla rury PEX 16x2!"
+  },
+  en: {
+    manifold_title: "Heating Manifold",
+    balanced: "Balanced",
+    unbalanced: "Needs Balancing",
+    section: "Loop",
+    required: "Required",
+    scale: "Rotameter scale",
+    loop_length: "Loop length",
+    pressure_drop: "Pressure drop",
+    screed: "Screed",
+    inertia: "Thermal inertia",
+    status_optimal: "Optimal",
+    status_underflow: "Throttled",
+    status_overflow: "Oversized",
+    status_critical: "Critical",
+    warn_underflow: "Underflowing. Open rotameter valve.",
+    warn_overflow: "Excessive flow. Loop is stealing flow from others.",
+    warn_length: "Loop length exceeds safe threshold for 16x2 pipe!"
+  },
+  de: {
+    manifold_title: "Heizkreisverteiler",
+    balanced: "Abgeglichen",
+    unbalanced: "Abgleich nötig",
+    section: "Kreis",
+    required: "Soll-Wert",
+    scale: "Durchflussskala",
+    loop_length: "Rohrlänge",
+    pressure_drop: "Druckverlust",
+    screed: "Estrich",
+    inertia: "Trägheit",
+    status_optimal: "Optimal",
+    status_underflow: "Gedrosselt",
+    status_overflow: "Überdimensioniert",
+    status_critical: "Kritisch",
+    warn_underflow: "Zu geringer Durchfluss. Durchflussmesser öffnen.",
+    warn_overflow: "Zu hoher Durchfluss. Kreis stiehlt Durchfluss.",
+    warn_length: "Rohrlänge überschreitet das Limit für 16x2 Rohr!"
+  },
+  es: {
+    manifold_title: "Colector de Suelo Radiante",
+    balanced: "Equilibrado",
+    unbalanced: "Requiere ajuste",
+    section: "Circuito",
+    required: "Requerido",
+    scale: "Escala caudalímetro",
+    loop_length: "Longitud circuito",
+    pressure_drop: "Pérdida de carga",
+    screed: "Recrecido",
+    inertia: "Inercia térmica",
+    status_optimal: "Óptimo",
+    status_underflow: "Estrangulado",
+    status_overflow: "Sobredimensionado",
+    status_critical: "Crítico",
+    warn_underflow: "Caudal insuficiente. Abra el caudalímetro.",
+    warn_overflow: "Caudal excesivo. El circuito roba caudal a otros.",
+    warn_length: "¡Longitud excesiva para tubería 16x2!"
+  }
+};
 
 class UnderfloorHeatingCard extends HTMLElement {
   constructor() {
@@ -11,6 +91,7 @@ class UnderfloorHeatingCard extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this._config = {};
     this._hass = null;
+    this._lang = 'pl';
   }
 
   setConfig(config) {
@@ -20,7 +101,14 @@ class UnderfloorHeatingCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    // Automatyczne wykrycie języka profilu użytkownika w Home Assistant
+    const detectedLang = (hass.locale && hass.locale.language) || hass.language || 'pl';
+    this._lang = I18N[detectedLang] ? detectedLang : (detectedLang.startsWith('en') ? 'en' : (detectedLang.startsWith('de') ? 'de' : (detectedLang.startsWith('es') ? 'es' : 'pl')));
     this.updateCard();
+  }
+
+  get t() {
+    return I18N[this._lang] || I18N['pl'];
   }
 
   render() {
@@ -92,7 +180,6 @@ class UnderfloorHeatingCard extends HTMLElement {
           color: var(--danger-color);
         }
 
-        /* Siatka RWD dla pętli podłogówki */
         .loops-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -142,7 +229,6 @@ class UnderfloorHeatingCard extends HTMLElement {
           border-radius: 4px;
         }
 
-        /* Graficzny rotametr RWD */
         .rotameter-wrapper {
           display: flex;
           align-items: center;
@@ -229,7 +315,6 @@ class UnderfloorHeatingCard extends HTMLElement {
           opacity: 0.7;
         }
 
-        /* Właściwości techniczne i wylewka */
         .specs-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -270,9 +355,9 @@ class UnderfloorHeatingCard extends HTMLElement {
         <div class="header">
           <div class="title">
             <span>🔥</span>
-            <span id="manifold-title">Rozdzielacz Podłogówki</span>
+            <span id="manifold-title">${this.t.manifold_title}</span>
           </div>
-          <div id="manifold-badge" class="badge-status badge-optimal">Zrównoważony</div>
+          <div id="manifold-badge" class="badge-status badge-optimal">${this.t.balanced}</div>
         </div>
 
         <div class="loops-grid" id="loops-container">
@@ -280,36 +365,21 @@ class UnderfloorHeatingCard extends HTMLElement {
         </div>
       </div>
     `;
+    this.updateCard();
   }
 
   updateCard() {
-    if (!this._hass || !this.shadowRoot) return;
-
-    const container = this.shadowRoot.getElementById('loops-container');
+    const container = this.shadowRoot ? this.shadowRoot.getElementById('loops-container') : null;
     if (!container) return;
 
-    // Przeszukiwanie encji powiązanych z integracją underfloor_heating
-    const entities = Object.keys(this._hass.states).filter(e => e.includes('rotameter_flow_lh') || e.includes('loop_'));
-    
-    // Jeśli brak encji na żywo, karta prezentuje interaktywny widok demonstracyjny
-    if (entities.length === 0) {
-      this.renderDemoView();
-      return;
-    }
+    const t = this.t;
 
-    // Dynamiczna prezentacja encji w HA
-    // ...
-  }
-
-  renderDemoView() {
-    const container = this.shadowRoot.getElementById('loops-container');
-    if (!container) return;
-
+    // Przykładowe dane demo z tłumaczeniami
     const sampleLoops = [
       {
         id: "salon_1",
-        name: "Salon Pętla 1",
-        section: "Obwód 1",
+        name: "Salon (1)",
+        section: `${t.section} 1`,
         flow_lh: 110,
         flow_req_lh: 115,
         length_m: 85.5,
@@ -319,21 +389,9 @@ class UnderfloorHeatingCard extends HTMLElement {
         status: "optymalny",
       },
       {
-        id: "salon_2",
-        name: "Salon Pętla 2",
-        section: "Obwód 2",
-        flow_lh: 115,
-        flow_req_lh: 115,
-        length_m: 88.0,
-        dp_kpa: 12.1,
-        screed: "Anhydryt 50mm",
-        inertia: "0.6 h",
-        status: "optymalny",
-      },
-      {
         id: "lazienka",
-        name: "Łazienka Piętro",
-        section: "Obwód 3",
+        name: "Łazienka",
+        section: `${t.section} 2`,
         flow_lh: 65,
         flow_req_lh: 95,
         length_m: 54.0,
@@ -341,12 +399,12 @@ class UnderfloorHeatingCard extends HTMLElement {
         screed: "Cement 65mm",
         inertia: "1.4 h",
         status: "zdławiony",
-        warning: "Przepływ zdławiony (-31%). Otwórz rotametr.",
+        warning: t.warn_underflow,
       },
       {
         id: "sypialnia",
-        name: "Sypialnia Główna",
-        section: "Obwód 4",
+        name: "Sypialnia",
+        section: `${t.section} 3`,
         flow_lh: 140,
         flow_req_lh: 90,
         length_m: 72.0,
@@ -354,7 +412,7 @@ class UnderfloorHeatingCard extends HTMLElement {
         screed: "Cement 65mm",
         inertia: "1.8 h",
         status: "przewymiarowany",
-        warning: "Zbyt duży przepływ (+55%). Pętla zabiera przepływ innym.",
+        warning: t.warn_overflow,
       }
     ];
 
@@ -380,33 +438,33 @@ class UnderfloorHeatingCard extends HTMLElement {
             <div class="rotameter-data">
               <div class="flow-values">
                 <span class="flow-current">${loop.flow_lh} <small style="font-size:0.65em">l/h</small></span>
-                <span class="flow-req">Wymagany: <b>${loop.flow_req_lh} l/h</b></span>
+                <span class="flow-req">${t.required}: <b>${loop.flow_req_lh} l/h</b></span>
               </div>
               <div style="font-size: 0.75rem; color: var(--secondary-text)">
-                Skala rotametru: ${(loop.flow_lh / 60).toFixed(2)} l/min
+                ${t.scale}: ${(loop.flow_lh / 60).toFixed(2)} l/min
               </div>
               <div class="controls">
-                <button class="btn-ctrl" onclick="alert('Zmieniono przepływ ${loop.name} o -5 l/h')">-5</button>
-                <button class="btn-ctrl" onclick="alert('Zmieniono przepływ ${loop.name} o +5 l/h')">+5</button>
+                <button class="btn-ctrl" onclick="alert('-5 l/h')">-5</button>
+                <button class="btn-ctrl" onclick="alert('+5 l/h')">+5</button>
               </div>
             </div>
           </div>
 
           <div class="specs-grid">
             <div class="spec-item">
-              <span class="spec-label">Długość pętli</span>
+              <span class="spec-label">${t.loop_length}</span>
               <span class="spec-val">${loop.length_m} m</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Spadek ciśnienia</span>
+              <span class="spec-label">${t.pressure_drop}</span>
               <span class="spec-val">${loop.dp_kpa} kPa</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Wylewka</span>
+              <span class="spec-label">${t.screed}</span>
               <span class="spec-val">${loop.screed}</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Bezwładność</span>
+              <span class="spec-label">${t.inertia}</span>
               <span class="spec-val">${loop.inertia}</span>
             </div>
           </div>
@@ -419,11 +477,3 @@ class UnderfloorHeatingCard extends HTMLElement {
 }
 
 customElements.define('underfloor-heating-card', UnderfloorHeatingCard);
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "underfloor-heating-card",
-  name: "Underfloor Heating Card",
-  preview: true,
-  description: "Responsywna karta rozdzielaczy, stref i rotametrów podłogówki (RWD)"
-});
-

@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fußbodenheizung - Einrichtung",
+        "description": "Konfigurieren Sie den Namen der Fußbodenheizungsanlage.",
+        "data": {
+          "name": "Name der Anlage"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Fußbodenheizungs-Verwaltung",
+        "description": "Wählen Sie eine Aktion aus:",
+        "data": {
+          "action": "Aktion"
+        }
+      },
+      "add_manifold": {
+        "title": "Neuen Heizkreisverteiler hinzufügen",
+        "description": "Geben Sie die Details des Verteilers ein:",
+        "data": {
+          "id": "Verteiler-ID (z. B. verteiler_eg)",
+          "name": "Name des Verteilers",
+          "location": "Standort (z. B. Heizungsraum, Flur)",
+          "sections_count": "Anzahl der Heizkreise"
+        }
+      },
+      "add_zone": {
+        "title": "Heizzone (Raum) hinzufügen",
+        "description": "Raumparameter, Estrichart und Dicke angeben:",
+        "data": {
+          "id": "Zonen-ID (z. B. wohnzimmer)",
+          "name": "Name der Zone",
+          "area_m2": "Fläche (m²)",
+          "screed_type": "Estrichart",
+          "screed_thickness_mm": "Estrichdicke (mm)",
+          "floor_covering": "Bodenbelag",
+          "heat_load_w_m2": "Spezifischer Wärmebedarf (W/m²)",
+          "target_temp": "Soll-Temperatur (°C)"
+        }
+      },
+      "add_loop": {
+        "title": "Heizkreis hinzufügen",
+        "description": "Heizkreis mit Verteiler und Zone verknüpfen (Länge wird automatisch geschätzt):",
+        "data": {
+          "id": "Heizkreis-ID (z. B. kreis_wohnzimmer_1)",
+          "name": "Name des Heizkreises",
+          "manifold_id": "Verteiler",
+          "zone_id": "Heizzone",
+          "section_number": "Kreisnummer am Verteiler",
+          "pipe_type": "Rohrtyp",
+          "spacing_cm": "Verlegeabstand (cm)",
+          "approach_length_m": "Anbindelänge zum Verteiler (m)",
+          "loops_in_zone": "Anzahl der Kreise im Raum",
+          "rotameter_flow_lh": "Durchflussmesser-Einstellung (l/h)"
+        }
+      }
+    }
+  }
+}
+

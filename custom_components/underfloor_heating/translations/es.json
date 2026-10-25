@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Suelo Radiante - Configuración",
+        "description": "Configure el nombre de la instalación de suelo radiante.",
+        "data": {
+          "name": "Nombre de la instalación"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gestión de Suelo Radiante",
+        "description": "Seleccione una acción:",
+        "data": {
+          "action": "Acción"
+        }
+      },
+      "add_manifold": {
+        "title": "Añadir nuevo colector",
+        "description": "Introduzca los datos del colector de distribución:",
+        "data": {
+          "id": "ID del colector (ej. colector_planta_baja)",
+          "name": "Nombre del colector",
+          "location": "Ubicación (ej. Sala de calderas)",
+          "sections_count": "Número de vías / circuitos"
+        }
+      },
+      "add_zone": {
+        "title": "Añadir zona térmica (estancia)",
+        "description": "Parámetros de la estancia, tipo y espesor del recrecido:",
+        "data": {
+          "id": "ID de la zona (ej. salon)",
+          "name": "Nombre de la zona",
+          "area_m2": "Superficie (m²)",
+          "screed_type": "Tipo de recrecido",
+          "screed_thickness_mm": "Espesor del recrecido (mm)",
+          "floor_covering": "Tipo de pavimento",
+          "heat_load_w_m2": "Carga térmica de diseño (W/m²)",
+          "target_temp": "Temperatura objetivo (°C)"
+        }
+      },
+      "add_loop": {
+        "title": "Añadir circuito de suelo radiante",
+        "description": "Asignar circuito a colector y zona (la longitud se calcula automáticamente):",
+        "data": {
+          "id": "ID del circuito (ej. circuito_salon_1)",
+          "name": "Nombre del circuito",
+          "manifold_id": "Colector",
+          "zone_id": "Zona / Estancia",
+          "section_number": "Número de vía en colector",
+          "pipe_type": "Tipo de tubería PE",
+          "spacing_cm": "Paso entre tubos (cm)",
+          "approach_length_m": "Distancia al colector (m)",
+          "loops_in_zone": "Circuitos en esta estancia",
+          "rotameter_flow_lh": "Ajuste del caudalímetro (l/h)"
+        }
+      }
+    }
+  }
+}
+
