@@ -1,0 +1,143 @@
+set_rotameter_flow:
+  name: Ustaw przepływ rotametru
+  description: Ustawia zadany przepływ objętościowy na rotametrze pętli ogrzewania podłogowego.
+  fields:
+    loop_id:
+      name: Identyfikator pętli
+      description: Unikalny identyfikator pętli (np. petla_parter_1).
+      required: true
+      example: petla_parter_1
+      selector:
+        text:
+    rotameter_flow_lh:
+      name: Przepływ (l/h)
+      description: Zadany przepływ wody w litrach na godzinę (l/h).
+      required: true
+      example: 90.0
+      selector:
+        number:
+          min: 0.0
+          max: 400.0
+          step: 1.0
+          unit_of_measurement: l/h
+
+update_zone:
+  name: Zaktualizuj parametry strefy
+  description: Aktualizuje parametry termiczne i geometryczne strefy grzewczej.
+  fields:
+    zone_id:
+      name: Identyfikator strefy
+      description: Unikalny identyfikator strefy (np. salon).
+      required: true
+      example: salon
+      selector:
+        text:
+    name:
+      name: Nazwa strefy
+      description: Przyjazna nazwa strefy (np. Salon).
+      selector:
+        text:
+    area_m2:
+      name: Powierzchnia (m²)
+      description: Powierzchnia strefy w metrach kwadratowych.
+      selector:
+        number:
+          min: 1.0
+          max: 200.0
+          step: 0.5
+          unit_of_measurement: m²
+    screed_type:
+      name: Rodzaj wylewki
+      description: Rodzaj wylewki posadzkowej.
+      selector:
+        select:
+          options:
+            - label: Wylewka cementowa tradycyjna
+              value: cement
+            - label: Wylewka anhydrytowa płynna
+              value: anhydrite
+            - label: Sucha zabudowa
+              value: dry_screed
+    screed_thickness_mm:
+      name: Grubość wylewki (mm)
+      description: Grubość warstwy wylewki posadzkowej w milimetrach.
+      selector:
+        number:
+          min: 20.0
+          max: 120.0
+          step: 1.0
+          unit_of_measurement: mm
+    target_temp:
+      name: Temperatura docelowa (°C)
+      description: Docelowa temperatura powietrza w pomieszczeniu.
+      selector:
+        number:
+          min: 15.0
+          max: 28.0
+          step: 0.5
+          unit_of_measurement: °C
+    heat_load_w_m2:
+      name: Zapotrzebowanie cieplne (W/m²)
+      description: Projektowe zapotrzebowanie na moc grzewczą na m².
+      selector:
+        number:
+          min: 10.0
+          max: 150.0
+          step: 1.0
+          unit_of_measurement: W/m²
+
+update_loop:
+  name: Zaktualizuj parametry pętli
+  description: Aktualizuje parametry hydrauliczne i geometryczne pętli grzewczej.
+  fields:
+    loop_id:
+      name: Identyfikator pętli
+      description: Unikalny identyfikator pętli (np. petla_parter_1).
+      required: true
+      example: petla_parter_1
+      selector:
+        text:
+    name:
+      name: Nazwa pętli
+      description: Przyjazna nazwa pętli.
+      selector:
+        text:
+    spacing_cm:
+      name: Rozstaw rur (cm)
+      description: Rozstaw rur w pętli.
+      selector:
+        number:
+          min: 5.0
+          max: 30.0
+          step: 2.5
+          unit_of_measurement: cm
+    approach_length_m:
+      name: Długość podejścia (m)
+      description: Długość odcinka zasilania i powrotu od rozdzielacza do strefy.
+      selector:
+        number:
+          min: 0.0
+          max: 30.0
+          step: 0.5
+          unit_of_measurement: m
+    loops_in_zone:
+      name: Liczba pętli w strefie
+      description: Łączna liczba pętli przypadająca na dane pomieszczenie.
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+    pipe_type:
+      name: Typ rury
+      description: Średnica i typ zastosowanej rury PEX/PE-RT.
+      selector:
+        select:
+          options:
+            - label: PEX/PE-RT 16x2.0 mm
+              value: pex_16x2
+            - label: PEX/PE-RT 17x2.0 mm
+              value: pex_17x2
+            - label: PEX/PE-RT 20x2.0 mm
+              value: pex_20x2
+

@@ -158,7 +158,6 @@ class LoopBalancedBinarySensor(BaseHeatingBinaryEntity):
         self.l_data = l_data
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"loop_{loop_id}")},
-            via_device=(DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
         )
 
     @property
@@ -208,7 +207,6 @@ class LoopIssueBinarySensor(BaseHeatingBinaryEntity):
         self.l_data = l_data
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"loop_{loop_id}")},
-            via_device=(DOMAIN, f"manifold_{l_data.get('manifold_id')}"),
         )
 
     @property
