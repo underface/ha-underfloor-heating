@@ -1,14 +1,24 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "Add Underfloor Heating Installation",
-        "description": "Enter installation name and first manifold details:",
+      "add_manifold": {
+        "title": "Add First Manifold",
+        "description": "Enter manifold details. Loops will be generated automatically.",
         "data": {
-          "name": "Installation name",
-          "manifold_name": "Manifold name (e.g. Ground Floor)",
-          "sections_count": "Number of loops on this manifold",
+          "name": "Manifold name (e.g. Ground Floor Manifold)",
+          "sections_count": "Number of loops (1–24)",
           "location": "Location (e.g. Boiler Room)"
+        }
+      },
+      "configure_loops": {
+        "title": "Configure Loops – {manifold_name}",
+        "description": "Assign room and parameters to each of the {sections_count} loops.",
+        "data": {
+          "loop_N_room": "Room name",
+          "loop_N_area": "Room area (m²)",
+          "loop_N_flow": "Rotameter flow rate (l/min)",
+          "loop_N_screed": "Screed type",
+          "loop_N_thickness": "Screed thickness (mm)"
         }
       }
     }
@@ -22,67 +32,36 @@
           "action": "Action"
         }
       },
-      "select_manifold_for_loops": {
-        "title": "Select Manifold",
-        "description": "Select manifold to configure loops:",
-        "data": {
-          "manifold_id": "Manifold"
-        }
-      },
-      "select_loops_to_configure": {
-        "title": "{manifold_name} - Select Loops",
-        "description": "Select one or more loops to assign to a room:",
-        "data": {
-          "selected_loops": "Select loops"
-        }
-      },
-      "configure_selected_loops": {
-        "title": "Configure Selected Loops ({loops_list})",
-        "description": "Enter room name, room area, flow rate in l/min and screed properties:\n(Area is evenly divided across {loops_count} selected loops)",
-        "data": {
-          "room_name": "Room name (e.g. Living room, Kitchen)",
-          "room_area_m2": "Room area (m²)",
-          "flow_lmin": "Rotameter flow rate (l/min)",
-          "screed_type": "Screed type",
-          "screed_thickness_mm": "Screed thickness (mm)",
-          "spacing_cm": "Pipe spacing"
-        }
-      },
-      "confirm_continue": {
-        "title": "Loops Saved!",
-        "description": "Parameters successfully assigned to selected loops.\nDo you want to configure more loops on this manifold?",
-        "data": {
-          "continue_config": "Configure more loops"
-        }
-      },
       "add_manifold": {
         "title": "Add New Manifold",
-        "description": "Enter new manifold details (loops are generated automatically):",
+        "description": "Enter manifold details. Loops will be generated automatically.",
         "data": {
           "name": "Manifold name",
-          "sections_count": "Loops count",
+          "sections_count": "Number of loops (1–24)",
           "location": "Location"
         }
       },
-      "select_edit_manifold": {
-        "title": "Select Manifold to Edit",
-        "description": "Select manifold:",
+      "select_manifold_for_loops": {
+        "title": "Select Manifold",
+        "description": "Select manifold to edit its loops:",
         "data": {
           "manifold_id": "Manifold"
         }
       },
-      "edit_manifold_details": {
-        "title": "Edit Manifold",
-        "description": "Modify manifold name or loop count:",
+      "configure_loops": {
+        "title": "Configure Loops – {manifold_name}",
+        "description": "Assign room and parameters to each of the {sections_count} loops.",
         "data": {
-          "name": "Manifold name",
-          "sections_count": "Loops count",
-          "location": "Location"
+          "loop_N_room": "Room name",
+          "loop_N_area": "Room area (m²)",
+          "loop_N_flow": "Rotameter flow rate (l/min)",
+          "loop_N_screed": "Screed type",
+          "loop_N_thickness": "Screed thickness (mm)"
         }
       },
       "remove_manifold": {
         "title": "Remove Manifold",
-        "description": "Select manifold to delete:",
+        "description": "Select manifold to delete (along with all its loops):",
         "data": {
           "manifold_id": "Manifold"
         }

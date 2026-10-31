@@ -1,6 +1,6 @@
 """Stałe i definicje dla integracji Home Assistant Underfloor Heating.
 
-Wersja: 1.1.0
+Wersja: 1.2.0
 """
 
 from typing import Final
@@ -9,7 +9,7 @@ from typing import Final
 DOMAIN: Final = "underfloor_heating"
 
 # Wersja wtyczki
-INTEGRATION_VERSION: Final = "1.1.0"
+INTEGRATION_VERSION: Final = "1.2.0"
 
 # Domyślne wartości konfiguracyjne
 DEFAULT_NAME: Final = "Podłogówka"

@@ -85,6 +85,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Konfiguracja integracji oraz rejestracja zasobów frontendowych (HACS)."""
     hass.data.setdefault(DOMAIN, {})
 
+    # Rejestracja karty Lovelace (statyczny plik JS)
     frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
     card_file = os.path.join(frontend_dir, "underfloor-heating-card.js")
 
@@ -188,6 +189,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Nasłuchiwanie na aktualizację opcji konfiguracyjnych
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
+    # Rejestracja panelu Lovelace do zarządzania rozdzielaczami
+    if hasattr(hass.components, "frontend"):
+        hass.components.frontend.async_register_built_in_panel(
+            component_name="underfloor_heating",
+            frontend_url_path="underfloor_heating",
+            name="Rozdzielacze",
+            sidebar_title="Rozdzielacze",
+            sidebar_icon="mdi:pipe-valve",
+            require_admin=False,
+            config={"url": "/local/custom_components/underfloor_heating/www/index.html"},
+        )
+    # Powiadomienie z linkiem do panelu
+    from homeassistant.components import persistent_notification as pn
+    pn.create(
+        hass,
+        title="Rozdzielacze",
+        message="Kliknij <a href='/underfloor_heating'>tutaj</a>, aby przejść do zarządzania rozdzielaczami.",
+    )
     return True
 
 

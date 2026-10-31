@@ -1,14 +1,24 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "Dodaj instalację ogrzewania podłogowego",
-        "description": "Wprowadź nazwę instalacji oraz parametry pierwszego rozdzielacza:",
+      "add_manifold": {
+        "title": "Dodaj pierwszy rozdzielacz",
+        "description": "Podaj dane pierwszego rozdzielacza. Pętle zostaną wygenerowane automatycznie.",
         "data": {
-          "name": "Nazwa instalacji (np. Podłogówka Dom)",
-          "manifold_name": "Nazwa rozdzielacza (np. Rozdzielacz Parter)",
-          "sections_count": "Liczba pętli na tym rozdzielaczu",
-          "location": "Lokalizacja (np. Kotłownia, Hol)"
+          "name": "Nazwa rozdzielacza (np. Rozdzielacz Parter)",
+          "sections_count": "Liczba pętli (1–24)",
+          "location": "Lokalizacja (np. Kotłownia / Parter)"
+        }
+      },
+      "configure_loops": {
+        "title": "Konfiguracja pętli – {manifold_name}",
+        "description": "Przypisz pomieszczenie i parametry do każdej z {sections_count} pętli rozdzielacza.",
+        "data": {
+          "loop_N_room": "Pomieszczenie pętli",
+          "loop_N_area": "Powierzchnia pomieszczenia (m²)",
+          "loop_N_flow": "Przepływ rotametrów (l/min)",
+          "loop_N_screed": "Rodzaj wylewki",
+          "loop_N_thickness": "Grubość wylewki (mm)"
         }
       }
     }
@@ -22,62 +32,31 @@
           "action": "Działanie"
         }
       },
-      "select_manifold_for_loops": {
-        "title": "Wybór rozdzielacza",
-        "description": "Wybierz rozdzielacz, którego pętle chcesz przypisać:",
-        "data": {
-          "manifold_id": "Rozdzielacz"
-        }
-      },
-      "select_loops_to_configure": {
-        "title": "{manifold_name} - Wybór pętli",
-        "description": "Zaznacz jedną lub wiele pętli, które chcesz przypisać do pomieszczenia (np. Pętla 1 i 2 do Salonu):",
-        "data": {
-          "selected_loops": "Zaznacz pętle"
-        }
-      },
-      "configure_selected_loops": {
-        "title": "Konfiguracja zaznaczonych pętli ({loops_list})",
-        "description": "Określ pomieszczenie, łączny metraż, pożądany przepływ w l/min oraz parametry posadzki/jastrychu:\n(Metraż zostanie podzielony równo między zaznaczone {loops_count} pętli)",
-        "data": {
-          "room_name": "Pomieszczenie (np. Salon, Sypialnia, Łazienka)",
-          "room_area_m2": "Rozmiar / Powierzchnia pomieszczenia (m²)",
-          "flow_lmin": "Ustawienie przepływu rotametrów (l/min)",
-          "screed_type": "Rodzaj posadzki / wylewki",
-          "screed_thickness_mm": "Grubość posadzki (mm)",
-          "spacing_cm": "Rozstaw rur PE"
-        }
-      },
-      "confirm_continue": {
-        "title": "Zapisano pętle!",
-        "description": "Parametry zostały pomyślnie przypisane do zaznaczonych pętli.\nCzy chcesz skonfigurować kolejne pętle tego rozdzielacza?",
-        "data": {
-          "continue_config": "Konfiguruj kolejne pętle rozdzielacza"
-        }
-      },
       "add_manifold": {
         "title": "Dodaj nowy rozdzielacz",
-        "description": "Wprowadź dane nowego rozdzielacza (pętle zostaną wygenerowane automatycznie):",
+        "description": "Podaj dane nowego rozdzielacza. Pętle zostaną wygenerowane automatycznie.",
         "data": {
           "name": "Nazwa rozdzielacza (np. Rozdzielacz Piętro)",
-          "sections_count": "Liczba pętli na rozdzielaczu",
+          "sections_count": "Liczba pętli (1–24)",
           "location": "Lokalizacja (np. Garderoba)"
         }
       },
-      "select_edit_manifold": {
-        "title": "Wybierz rozdzielacz",
-        "description": "Wybierz rozdzielacz do zmiany parametrów:",
+      "select_manifold_for_loops": {
+        "title": "Wybór rozdzielacza",
+        "description": "Wybierz rozdzielacz, którego pętle chcesz edytować:",
         "data": {
           "manifold_id": "Rozdzielacz"
         }
       },
-      "edit_manifold_details": {
-        "title": "Edycja rozdzielacza",
-        "description": "Możesz zmienić nazwę lub liczbę pętli (nowe pętle zostaną dodane automatycznie):",
+      "configure_loops": {
+        "title": "Konfiguracja pętli – {manifold_name}",
+        "description": "Przypisz pomieszczenie i parametry do każdej z {sections_count} pętli rozdzielacza.",
         "data": {
-          "name": "Nazwa rozdzielacza",
-          "sections_count": "Liczba pętli",
-          "location": "Lokalizacja"
+          "loop_N_room": "Pomieszczenie pętli",
+          "loop_N_area": "Powierzchnia pomieszczenia (m²)",
+          "loop_N_flow": "Przepływ rotametrów (l/min)",
+          "loop_N_screed": "Rodzaj wylewki",
+          "loop_N_thickness": "Grubość wylewki (mm)"
         }
       },
       "remove_manifold": {

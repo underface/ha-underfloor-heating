@@ -139,7 +139,7 @@ class UnderfloorHeatingCard extends HTMLElement {
           overflow: hidden;
         }
 
-        /* Nagłówek i zakładki wyboru rozdzielacza */
+        /* Dodaj przycisk otwierający modal do tworzenia rozdzielacza */
         .header {
           display: flex;
           flex-wrap: wrap;
@@ -150,6 +150,39 @@ class UnderfloorHeatingCard extends HTMLElement {
           padding-bottom: 12px;
           margin-bottom: 16px;
         }
+        .add-manifold-btn {
+          background: var(--primary);
+          color: #fff;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+        .modal {
+          background: var(--card-bg);
+          color: var(--card-color);
+          border-radius: 12px;
+          padding: 20px;
+          max-width: 500px;
+          width: 90%;
+          box-shadow: var(--ha-card-box-shadow, 0 4px 16px rgba(0,0,0,0.25));
+        }
+        .modal h2 {font-size: 1.2rem; margin-top:0;}
+        .modal label {display:block;margin-top:8px;}
+        .modal input, .modal select {width:100%;padding:4px;margin-top:4px;}
+        .modal .actions {margin-top:12px;text-align:right;}
+        .modal .actions button {margin-left:8px;}
+
 
         .header-title {
           font-size: 1.15rem;
