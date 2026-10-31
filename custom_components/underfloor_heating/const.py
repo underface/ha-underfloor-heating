@@ -1,6 +1,6 @@
-"""Stałe i definicje dla integracji Home Assistant Underfloor Heating (Zarządzanie Ogrzewaniem Podłogowym).
+"""Stałe i definicje dla integracji Home Assistant Underfloor Heating.
 
-Wersja: 1.0.0
+Wersja: 1.1.0
 """
 
 from typing import Final
@@ -9,7 +9,7 @@ from typing import Final
 DOMAIN: Final = "underfloor_heating"
 
 # Wersja wtyczki
-INTEGRATION_VERSION: Final = "1.0.5"
+INTEGRATION_VERSION: Final = "1.1.0"
 
 # Domyślne wartości konfiguracyjne
 DEFAULT_NAME: Final = "Podłogówka"
@@ -55,8 +55,8 @@ SCREED_TYPES: Final = {
         "conductivity": 1.4,  # W/(m*K)
         "density": 2000.0,  # kg/m3
         "specific_heat": 1000.0,  # J/(kg*K)
-        "min_thickness_mm": 50.0,
-        "recommended_thickness_mm": 65.0,
+        "min_thickness_mm": 45.0,
+        "recommended_thickness_mm": 50.0,
     },
     "anhydrite": {
         "name": "Wylewka anhydrytowa płynna",
@@ -128,4 +128,3 @@ STATUS_ACCEPTABLE: Final = "akceptowalny"
 STATUS_UNDERFLOW: Final = "zdławiony"
 STATUS_OVERFLOW: Final = "przewymiarowany"
 STATUS_CRITICAL: Final = "krytyczny"
-

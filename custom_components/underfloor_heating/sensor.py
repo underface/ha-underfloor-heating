@@ -465,10 +465,12 @@ class LoopEstimatedLengthSensor(BaseHeatingEntity):
         data = self.current_data
         loop = data[CONF_LOOPS].get(self.loop_id, self.l_data)
         zone = data[CONF_ZONES].get(loop.get(ATTR_ZONE_ID), {})
+        area = loop.get("area_m2") or zone.get(ATTR_AREA, 15.0)
+        loops_cnt = 1 if loop.get("area_m2") else loop.get("loops_in_zone", 1)
 
         return estimate_loop_length(
-            zone.get(ATTR_AREA, 15.0),
-            loop.get("loops_in_zone", 1),
+            area,
+            loops_cnt,
             loop.get(ATTR_SPACING_CM, 15.0),
             loop.get(ATTR_APPROACH_LENGTH, 4.0),
         )
@@ -479,11 +481,16 @@ class LoopEstimatedLengthSensor(BaseHeatingEntity):
         loop = data[CONF_LOOPS].get(self.loop_id, self.l_data)
         zone = data[CONF_ZONES].get(loop.get(ATTR_ZONE_ID), {})
         pipe_info = PIPE_TYPES.get(loop.get(ATTR_PIPE_TYPE, "pex_16x2"), {})
+        area = loop.get("area_m2") or zone.get(ATTR_AREA, 0.0)
+        room_name = loop.get("zone_name") or zone.get("name", "")
+        screed_type = loop.get("screed_type") or zone.get(ATTR_SCREED_TYPE, "cement")
+        screed_thick = loop.get("screed_thickness_mm") or zone.get(ATTR_SCREED_THICKNESS, 50.0)
         return {
-            "zone_id": loop.get(ATTR_ZONE_ID),
-            "zone_name": zone.get("name", ""),
-            "zone_area_m2": zone.get(ATTR_AREA, 0.0),
-            "loops_in_zone": loop.get("loops_in_zone", 1),
+            "section_number": loop.get("section_number", 1),
+            "room_name": room_name,
+            "area_m2": area,
+            "screed_type": screed_type,
+            "screed_thickness_mm": screed_thick,
             "spacing_cm": loop.get(ATTR_SPACING_CM, 15.0),
             "approach_length_m": loop.get(ATTR_APPROACH_LENGTH, 4.0),
             "pipe_type": loop.get(ATTR_PIPE_TYPE, "pex_16x2"),
@@ -514,9 +521,11 @@ class LoopPressureDropSensor(BaseHeatingEntity):
         data = self.current_data
         loop = data[CONF_LOOPS].get(self.loop_id, self.l_data)
         zone = data[CONF_ZONES].get(loop.get(ATTR_ZONE_ID), {})
+        area = loop.get("area_m2") or zone.get(ATTR_AREA, 15.0)
+        loops_cnt = 1 if loop.get("area_m2") else loop.get("loops_in_zone", 1)
         length = estimate_loop_length(
-            zone.get(ATTR_AREA, 15.0),
-            loop.get("loops_in_zone", 1),
+            area,
+            loops_cnt,
             loop.get(ATTR_SPACING_CM, 15.0),
             loop.get(ATTR_APPROACH_LENGTH, 4.0),
         )
@@ -589,11 +598,14 @@ class LoopBalancingStatusSensor(BaseHeatingEntity):
         data = self.current_data
         loop = data[CONF_LOOPS].get(self.loop_id, self.l_data)
         zone = data[CONF_ZONES].get(loop.get(ATTR_ZONE_ID), {})
-        loops_in_zone = max(loop.get("loops_in_zone", 1), 1)
+        area = loop.get("area_m2") or zone.get(ATTR_AREA, 15.0)
+        loops_cnt = 1 if loop.get("area_m2") else loop.get("loops_in_zone", 1)
+        screed_type = loop.get("screed_type") or zone.get(ATTR_SCREED_TYPE, "cement")
+        screed_thick = loop.get("screed_thickness_mm") or zone.get(ATTR_SCREED_THICKNESS, 50.0)
 
         length = estimate_loop_length(
-            zone.get(ATTR_AREA, 15.0),
-            loops_in_zone,
+            area,
+            loops_cnt,
             loop.get(ATTR_SPACING_CM, 15.0),
             loop.get(ATTR_APPROACH_LENGTH, 4.0),
         )
@@ -601,13 +613,13 @@ class LoopBalancingStatusSensor(BaseHeatingEntity):
         hyd = calculate_hydraulics(flow_lh, length, loop.get(ATTR_PIPE_TYPE, "pex_16x2"))
 
         therm = calculate_thermal_properties(
-            zone.get(ATTR_AREA, 15.0),
-            zone.get(ATTR_SCREED_TYPE, "cement"),
-            zone.get(ATTR_SCREED_THICKNESS, 65.0),
-            zone.get(ATTR_FLOOR_COVERING, "tiles"),
-            zone.get("heat_load_w_m2", 45.0),
+            area,
+            screed_type,
+            screed_thick,
+            loop.get(ATTR_FLOOR_COVERING, "tiles"),
+            45.0,
         )
-        req_flow_per_loop = therm["required_flow_lh"] / float(loops_in_zone)
+        req_flow_per_loop = therm["required_flow_lh"] / float(loops_cnt)
 
         diag = diagnose_loop(
             flow_lh,
@@ -619,6 +631,8 @@ class LoopBalancingStatusSensor(BaseHeatingEntity):
         )
 
         return {
+            "section_number": loop.get("section_number", 1),
+            "room_name": loop.get("zone_name") or zone.get("name", ""),
             "current_flow_lh": flow_lh,
             "current_flow_lmin": round(flow_lh / 60.0, 2),
             "required_flow_lh": req_flow_per_loop,
