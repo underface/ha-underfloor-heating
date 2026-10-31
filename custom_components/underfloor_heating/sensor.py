@@ -55,6 +55,7 @@ from .const import (
     DOMAIN,
     PIPE_TYPES,
     SCREED_TYPES,
+    WATER_SPECIFIC_HEAT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,9 +76,10 @@ async def async_setup_entry(
         entities.append(ManifoldMaxPressureDropSensor(hass, entry, manifold_id, m_data))
         entities.append(ManifoldStatusSensor(hass, entry, manifold_id, m_data))
 
-    # 2. Sensory dla stref (wylewka, bezwładność, zapotrzebowanie, metraż)
+    # 2. Sensory dla stref (wylewka, bezwładność, zapotrzebowanie, metraż, przepływ całkowity)
     for zone_id, z_data in data[CONF_ZONES].items():
         entities.append(ZoneAreaSensor(hass, entry, zone_id, z_data))
+        entities.append(ZoneTotalFlowSensor(hass, entry, zone_id, z_data))
         entities.append(ZoneHeatOutputSensor(hass, entry, zone_id, z_data))
         entities.append(ZoneRequiredFlowSensor(hass, entry, zone_id, z_data))
         entities.append(ZoneScreedInertiaSensor(hass, entry, zone_id, z_data))
@@ -187,9 +189,11 @@ class ManifoldMaxPressureDropSensor(BaseHeatingEntity):
             if l_info.get("manifold_id") == self.manifold_id:
                 flow_lh = data["rotameter_flows"].get(loop_id, 0.0)
                 zone = data[CONF_ZONES].get(l_info.get("zone_id"), {})
+                area = l_info.get("area_m2") or zone.get(ATTR_AREA, 15.0)
+                loops_cnt = 1 if l_info.get("area_m2") else l_info.get("loops_in_zone", 1)
                 length = estimate_loop_length(
-                    zone.get(ATTR_AREA, 15.0),
-                    l_info.get("loops_in_zone", 1),
+                    area,
+                    loops_cnt,
                     l_info.get(ATTR_SPACING_CM, 15.0),
                     l_info.get(ATTR_APPROACH_LENGTH, 4.0),
                 )
@@ -225,18 +229,21 @@ class ManifoldStatusSensor(BaseHeatingEntity):
             if l_info.get("manifold_id") == self.manifold_id:
                 flow_lh = data["rotameter_flows"].get(loop_id, 0.0)
                 zone = data[CONF_ZONES].get(l_info.get("zone_id"), {})
-                loops_in_zone = max(l_info.get("loops_in_zone", 1), 1)
+                area = l_info.get("area_m2") or zone.get(ATTR_AREA, 15.0)
+                loops_in_zone = 1 if l_info.get("area_m2") else max(l_info.get("loops_in_zone", 1), 1)
                 length = estimate_loop_length(
-                    zone.get(ATTR_AREA, 15.0),
+                    area,
                     loops_in_zone,
                     l_info.get(ATTR_SPACING_CM, 15.0),
                     l_info.get(ATTR_APPROACH_LENGTH, 4.0),
                 )
+                screed_type = l_info.get("screed_type") or zone.get(ATTR_SCREED_TYPE, "cement")
+                screed_thick = l_info.get("screed_thickness_mm") or zone.get(ATTR_SCREED_THICKNESS, 50.0)
                 hyd = calculate_hydraulics(flow_lh, length, l_info.get(ATTR_PIPE_TYPE, "pex_16x2"))
                 therm = calculate_thermal_properties(
-                    zone.get(ATTR_AREA, 15.0),
-                    zone.get(ATTR_SCREED_TYPE, "cement"),
-                    zone.get(ATTR_SCREED_THICKNESS, 65.0),
+                    area,
+                    screed_type,
+                    screed_thick,
                     zone.get(ATTR_FLOOR_COVERING, "tiles"),
                     zone.get("heat_load_w_m2", 45.0),
                 )
@@ -273,8 +280,9 @@ class ZoneAreaSensor(BaseHeatingEntity):
         self.z_data = z_data
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Strefa: {z_data.get('name', zone_id)}",
-            model="Strefa Ogrzewania Podłogowego",
+            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
+            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
+            suggested_area=z_data.get("name", zone_id),
         )
 
     @property
@@ -285,11 +293,74 @@ class ZoneAreaSensor(BaseHeatingEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         z = self.current_data[CONF_ZONES].get(self.zone_id, self.z_data)
+        area = float(z.get(ATTR_AREA, 0.0))
+        loops_cnt = z.get("loops_count", len(z.get("loops", []))) or 1
         return {
             "zone_id": self.zone_id,
+            "loops_count": loops_cnt,
+            "loops": z.get("loops", []),
+            "avg_loop_area_m2": round(area / loops_cnt, 2),
             "target_temp_c": z.get("target_temp", 21.0),
             "heat_load_w_m2": z.get("heat_load_w_m2", 45.0),
             "floor_covering": z.get(ATTR_FLOOR_COVERING, "tiles"),
+        }
+
+
+class ZoneTotalFlowSensor(BaseHeatingEntity):
+    """Sensor sumarycznego przepływu wody dla całego pomieszczenia (strefy)."""
+
+    _attr_name = "Sumaryczny przepływ wody"
+    _attr_native_unit_of_measurement = "l/min"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:water-pump"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, zone_id: str, z_data: dict) -> None:
+        super().__init__(hass, entry, f"zone_{zone_id}_total_flow")
+        self.zone_id = zone_id
+        self.z_data = z_data
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"zone_{zone_id}")},
+            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
+            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
+            suggested_area=z_data.get("name", zone_id),
+        )
+
+    @property
+    def native_value(self) -> float:
+        """Sumaryczny przepływ we wszystkich pętlach pomieszczenia w l/min."""
+        data = self.current_data
+        total_lmin = 0.0
+        z = data[CONF_ZONES].get(self.zone_id, self.z_data)
+        zone_loops = z.get("loops", [])
+
+        for loop_id, loop_data in data[CONF_LOOPS].items():
+            if loop_data.get("zone_id") == self.zone_id or loop_id in zone_loops:
+                flow_lh = data["rotameter_flows"].get(loop_id, loop_data.get(ATTR_ROTAMETER_FLOW_LH, 0.0))
+                total_lmin += flow_lh / 60.0
+
+        return round(total_lmin, 2)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Dodatkowe jednostki: l/h, m³/h oraz rzeczywista moc oddawana."""
+        val_lmin = self.native_value
+        val_lh = round(val_lmin * 60.0, 1)
+        val_m3h = round(val_lh / 1000.0, 3)
+
+        # Rzeczywista moc cieplna ze strumienia wody przy standardowej delcie T = 6.0 K
+        # Phi = (val_lh / 3600) * cp * delta_T
+        power_w = round((val_lh / 3600.0) * WATER_SPECIFIC_HEAT * 6.0, 1) if val_lh > 0 else 0.0
+        power_kw = round(power_w / 1000.0, 2)
+
+        z = self.current_data[CONF_ZONES].get(self.zone_id, self.z_data)
+        return {
+            "flow_l_h": val_lh,
+            "flow_m3_h": val_m3h,
+            "loops_count": z.get("loops_count", len(z.get("loops", []))),
+            "loops": z.get("loops", []),
+            "actual_heat_power_w": power_w,
+            "actual_heat_power_kw": power_kw,
+            "delta_t_c": 6.0,
         }
 
 
@@ -305,13 +376,16 @@ class ZoneScreedInfoSensor(BaseHeatingEntity):
         self.z_data = z_data
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
+            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
+            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
+            suggested_area=z_data.get("name", zone_id),
         )
 
     @property
     def native_value(self) -> str:
         z = self.current_data[CONF_ZONES].get(self.zone_id, self.z_data)
         screed_type = z.get(ATTR_SCREED_TYPE, "cement")
-        thickness = z.get(ATTR_SCREED_THICKNESS, 65.0)
+        thickness = z.get(ATTR_SCREED_THICKNESS, 50.0)
         type_name = SCREED_TYPES.get(screed_type, {}).get("name", screed_type)
         return f"{type_name} ({thickness} mm)"
 
@@ -331,8 +405,9 @@ class ZoneHeatOutputSensor(BaseHeatingEntity):
         self.z_data = z_data
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Strefa: {z_data.get('name', zone_id)}",
-            model="Strefa Ogrzewania Podłogowego",
+            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
+            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
+            suggested_area=z_data.get("name", zone_id),
         )
 
     @property
@@ -341,11 +416,22 @@ class ZoneHeatOutputSensor(BaseHeatingEntity):
         therm = calculate_thermal_properties(
             z.get(ATTR_AREA, 15.0),
             z.get(ATTR_SCREED_TYPE, "cement"),
-            z.get(ATTR_SCREED_THICKNESS, 65.0),
+            z.get(ATTR_SCREED_THICKNESS, 50.0),
             z.get(ATTR_FLOOR_COVERING, "tiles"),
             z.get("heat_load_w_m2", 45.0),
         )
         return therm["heat_output_w"]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        z = self.current_data[CONF_ZONES].get(self.zone_id, self.z_data)
+        w = self.native_value
+        return {
+            "heat_output_kw": round(w / 1000.0, 2),
+            "heat_load_w_m2": z.get("heat_load_w_m2", 45.0),
+            "area_m2": z.get(ATTR_AREA, 15.0),
+            "zone_id": self.zone_id,
+        }
 
 
 class ZoneRequiredFlowSensor(BaseHeatingEntity):
@@ -362,6 +448,9 @@ class ZoneRequiredFlowSensor(BaseHeatingEntity):
         self.z_data = z_data
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
+            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
+            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
+            suggested_area=z_data.get("name", zone_id),
         )
 
     @property
@@ -370,7 +459,7 @@ class ZoneRequiredFlowSensor(BaseHeatingEntity):
         therm = calculate_thermal_properties(
             z.get(ATTR_AREA, 15.0),
             z.get(ATTR_SCREED_TYPE, "cement"),
-            z.get(ATTR_SCREED_THICKNESS, 65.0),
+            z.get(ATTR_SCREED_THICKNESS, 50.0),
             z.get(ATTR_FLOOR_COVERING, "tiles"),
             z.get("heat_load_w_m2", 45.0),
         )
@@ -381,6 +470,7 @@ class ZoneRequiredFlowSensor(BaseHeatingEntity):
         val = self.native_value
         return {
             "required_flow_lmin": round(val / 60.0, 2),
+            "required_flow_m3h": round(val / 1000.0, 3),
             "zone_id": self.zone_id,
         }
 
@@ -400,6 +490,9 @@ class ZoneScreedInertiaSensor(BaseHeatingEntity):
         self.z_data = z_data
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"zone_{zone_id}")},
+            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
+            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
+            suggested_area=z_data.get("name", zone_id),
         )
 
     @property
@@ -558,9 +651,11 @@ class LoopFlowVelocitySensor(BaseHeatingEntity):
         data = self.current_data
         loop = data[CONF_LOOPS].get(self.loop_id, self.l_data)
         zone = data[CONF_ZONES].get(loop.get(ATTR_ZONE_ID), {})
+        area = loop.get("area_m2") or zone.get(ATTR_AREA, 15.0)
+        loops_cnt = 1 if loop.get("area_m2") else loop.get("loops_in_zone", 1)
         length = estimate_loop_length(
-            zone.get(ATTR_AREA, 15.0),
-            loop.get("loops_in_zone", 1),
+            area,
+            loops_cnt,
             loop.get(ATTR_SPACING_CM, 15.0),
             loop.get(ATTR_APPROACH_LENGTH, 4.0),
         )

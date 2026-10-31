@@ -1,53 +1,66 @@
 /**
- * Underfloor Heating Manifold Lovelace Card (RWD)
- * Fotorealistyczna, interaktywna wizualizacja rozdzielacza hydraulicznego:
- * - Belka górna (zasilająca) ze stali nierdzewnej z pionowymi rotametrami i ruchomymi pływakami
- * - Belka dolna (powrotna) z siłownikami termoelektrycznymi (dioda LED)
- * - Zawory kulowe z tarczami termometrów 38°C i 32°C
- * - Kafelki obiegów z nazwą pomieszczenia, przepływem l/m, l/h, długością i przyciskami [-] [+]
- * - Interaktywny modal szybkiej edycji pętli i wyboru wylewki
- *
- * Wersja: 1.2.0
+ * Karta Lovelace: Rozdzielacz Ogrzewania Podłogowego (RWD)
+ * Wersja: 1.3.0
+ * 
+ * Odwzorowanie 1:1 z projektu referencyjnego:
+ * - Górne statystyki w 3 kartach: Przepływ sumaryczny, Pętla krytyczna Δp, Różnica ΔT i Moc kW
+ * - Belka górna (Inox AISI 304 - Zasilanie) z pionowymi szklanymi rotametrami i plakietkami przepływu na górze
+ * - Belka dolna (Inox AISI 304 - Powrót) z siłownikami elektrotermicznymi 230V NC i diodą ON
+ * - Lewy panel termometrów zegarowych (Zasilanie 38.0°C / Powrót 32.0°C / ΔT = 6.0°C Optymalna)
+ * - Płaska siatka kafelków pętli z pełnymi parametrami inżynieryjnymi, przyciskami [-] 0.1 [+] i ramką "AKTYWNA EDYCJA"
+ * - Interaktywny in-card modal edycji parametrów pętli
  */
 
 const I18N = {
   pl: {
-    manifold: "Rozdzielacz",
-    balanced: "Zrównoważony",
-    unbalanced: "Wymaga regulacji",
     supply: "ZASILANIE",
     return: "POWRÓT",
-    total_flow: "Przepływ całkowity",
-    edit_loop: "Edytuj pętlę",
-    room: "Pomieszczenie",
-    area: "Powierzchnia (m²)",
-    flow: "Przepływ zadany (l/min)",
-    screed: "Rodzaj posadzki",
+    supply_pipe: "BELKA GÓRNA",
+    return_pipe: "BELKA DOLNA",
+    supplying: "Zasilająca",
+    returning: "Powrotna",
+    total_flow: "PRZEPŁYW SUMARYCZNY",
+    crit_loop: "PĘTLA KRYTYCZNA (ΔP_MAX)",
+    delta_t: "RÓŻNICA ΔT",
+    balanced: "Zrównoważony hydraulicznie",
+    needs_adjustment: "Wymaga regulacji",
+    crit_status: "krytyczny",
+    opt_status: "Optymalny",
+    accept_status: "Akceptowalny",
+    overflow_status: "Przewymiarowany",
+    active_edit: "AKTYWNA EDYCJA",
+    loop_grid_title: "SEKCJE PĘTLI GRZEWCZYCH (KLIKNIJ KAFELEK, ABY OTWORZYĆ IN-CARD MODAL EDYCJI)",
+    step_hint: "Krok regulacji rotametru: ±0.1 l/min",
+    pipe_len: "Długość rury:",
+    dp_drop: "Spadek Δp:",
+    screed_lbl: "Posadzka:",
     save: "Zapisz",
     cancel: "Anuluj",
-    screed_default: "Domyślna rozdzielacza",
-    screed_cement: "Wylewka cementowa tradycyjna",
-    screed_anhydrite: "Wylewka anhydrytowa płynna",
-    screed_dry: "Sucha zabudowa",
   },
   en: {
-    manifold: "Manifold",
-    balanced: "Balanced",
-    unbalanced: "Needs adjustment",
     supply: "SUPPLY",
     return: "RETURN",
-    total_flow: "Total flow",
-    edit_loop: "Edit Loop",
-    room: "Room Name",
-    area: "Area (m²)",
-    flow: "Target Flow (l/min)",
-    screed: "Screed Type",
+    supply_pipe: "TOP MANIFOLD",
+    return_pipe: "BOTTOM MANIFOLD",
+    supplying: "Supply (Flow)",
+    returning: "Return",
+    total_flow: "TOTAL FLOW",
+    crit_loop: "CRITICAL LOOP (ΔP_MAX)",
+    delta_t: "DIFFERENCE ΔT",
+    balanced: "Hydraulically balanced",
+    needs_adjustment: "Needs adjustment",
+    crit_status: "critical",
+    opt_status: "Optimal",
+    accept_status: "Acceptable",
+    overflow_status: "Overflow",
+    active_edit: "ACTIVE EDIT",
+    loop_grid_title: "HEATING LOOPS SECTIONS (CLICK CARD TO OPEN IN-CARD EDIT MODAL)",
+    step_hint: "Rotameter adjustment step: ±0.1 l/min",
+    pipe_len: "Pipe length:",
+    dp_drop: "Pressure drop Δp:",
+    screed_lbl: "Screed:",
     save: "Save",
     cancel: "Cancel",
-    screed_default: "Manifold Default",
-    screed_cement: "Cement Screed",
-    screed_anhydrite: "Anhydrite Liquid Screed",
-    screed_dry: "Dry System",
   }
 };
 
@@ -59,7 +72,8 @@ class UnderfloorHeatingCard extends HTMLElement {
     this._hass = null;
     this._lang = "pl";
     this._activeManifoldId = null;
-    this._editingLoopIndex = null;
+    this._selectedLoopIndex = 4; // Domyślnie zaznaczona pętla #5 jak na zrzucie
+    this._currentLoops = [];
   }
 
   setConfig(config) {
@@ -84,411 +98,628 @@ class UnderfloorHeatingCard extends HTMLElement {
         :host {
           display: block;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          --bg-card: var(--ha-card-background, #0d1527);
-          --text-main: var(--primary-text-color, #f8fafc);
-          --text-muted: var(--secondary-text-color, #94a3b8);
-          --border: var(--divider-color, #1e293b);
+          --bg-card: #080e1b;
+          --card-surface: #0c1527;
+          --border: #1e293b;
+          --text-main: #ffffff;
+          --text-muted: #94a3b8;
           --cyan-acc: #38bdf8;
-          --cyan-dark: #0284c7;
-          --brass: linear-gradient(180deg, #fef08a 0%, #ca8a04 45%, #854d0e 80%, #fef08a 100%);
-          --steel: linear-gradient(180deg, #f8fafc 0%, #94a3b8 35%, #475569 70%, #cbd5e1 100%);
+          --gold-acc: #f59e0b;
+          --green-acc: #22c55e;
+          --danger-acc: #ef4444;
+          --steel: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 20%, #94a3b8 50%, #475569 80%, #cbd5e1 100%);
+          --brass: linear-gradient(180deg, #fef08a 0%, #eab308 50%, #854d0e 85%, #fef08a 100%);
         }
 
         .card-container {
-          background: #0d1726;
+          background: var(--bg-card);
           color: var(--text-main);
-          border-radius: 16px;
-          padding: 16px 20px;
+          border-radius: 18px;
+          padding: 24px;
           border: 1px solid #1e293b;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+          box-shadow: 0 16px 40px rgba(0,0,0,0.6);
           user-select: none;
         }
 
-        /* NAGŁÓWEK KARTY */
-        .card-header {
+        /* NAGŁÓWEK GŁÓWNY Z TYTUŁEM I STATUSAMI */
+        .main-header {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-bottom: 20px;
+          gap: 14px;
+          margin-bottom: 16px;
         }
 
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .manifold-icon {
-          width: 36px;
-          height: 36px;
-          background: rgba(2, 132, 199, 0.15);
+        .menu-btn {
+          width: 38px;
+          height: 38px;
+          background: #0f1c33;
+          border: 1px solid #1e293b;
           border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #38bdf8;
-          font-size: 20px;
-          font-weight: 800;
+          color: var(--cyan-acc);
+          cursor: pointer;
         }
+        .menu-btn svg { width: 20px; height: 20px; fill: currentColor; }
 
-        .header-title-box {
+        .title-block {
           display: flex;
           flex-direction: column;
+          gap: 4px;
         }
 
-        .header-title {
-          font-size: 1.15rem;
+        .title-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .manifold-title {
+          font-size: 1.45rem;
           font-weight: 800;
-          color: #f8fafc;
+          color: #ffffff;
           letter-spacing: -0.01em;
         }
 
-        .header-subtitle {
-          font-size: 0.8rem;
-          color: #94a3b8;
-          margin-top: 2px;
-        }
-
-        .tabs-group {
-          display: flex;
-          gap: 8px;
-        }
-
-        .tab-btn {
-          padding: 6px 14px;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          font-weight: 700;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .tab-btn.active {
-          background: #0284c7;
-          color: #ffffff;
-          box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
-        }
-
-        .tab-btn.inactive {
-          background: #1e293b;
-          color: #94a3b8;
-        }
-        .tab-btn.inactive:hover {
-          background: #334155;
-          color: #f8fafc;
-        }
-
-        /* WIZUALIZACJA BELKI HYDRAULICZNEJ */
-        .manifold-station-wrapper {
-          overflow-x: auto;
-          padding-bottom: 12px;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .manifold-viewport {
-          min-width: 680px;
-          position: relative;
-          padding: 10px 0;
-        }
-
-        .station-layout {
-          display: grid;
-          grid-template-columns: 85px 1fr 40px;
-          align-items: stretch;
-          position: relative;
-        }
-
-        /* Uchwyty montażowe pionowe w tle */
-        .bracket-1 {
-          position: absolute;
-          left: 210px;
-          top: 0;
-          bottom: 20px;
-          width: 14px;
-          background: rgba(71, 85, 105, 0.3);
-          border-radius: 3px;
-          z-index: 1;
-        }
-        .bracket-2 {
-          position: absolute;
-          right: 170px;
-          top: 0;
-          bottom: 20px;
-          width: 14px;
-          background: rgba(71, 85, 105, 0.3);
-          border-radius: 3px;
-          z-index: 1;
-        }
-
-        /* Zawory z termometrami po lewej */
-        .valves-column {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          padding: 24px 0 20px 0;
-          z-index: 2;
-        }
-
-        .valve-unit {
-          display: flex;
-          flex-direction: column;
+        .status-badge {
+          display: inline-flex;
           align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          background: rgba(34, 197, 94, 0.15);
+          color: #4ade80;
+          border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .status-badge.crit {
+          background: rgba(239, 68, 68, 0.15);
+          color: #f87171;
+          border-color: rgba(239, 68, 68, 0.3);
         }
 
-        .thermometer-dial {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: #f8fafc;
+        .subtitle-row {
+          font-size: 0.82rem;
+          color: var(--text-muted);
+        }
+
+        /* 3 KAFELKI METRYK NA GÓRZE */
+        .metrics-cards-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 14px;
+          margin-bottom: 24px;
+        }
+
+        .metric-card {
+          background: var(--card-surface);
+          border: 1px solid #1b263b;
+          border-radius: 12px;
+          padding: 12px 18px;
           display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .metric-card-lbl {
+          font-size: 0.7rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .metric-card-val {
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: #ffffff;
+        }
+        .val-blue { color: #38bdf8; }
+        .val-gold { color: #f59e0b; }
+        .val-green { color: #4ade80; }
+
+        /* WIZUALIZACJA ROZDZIELACZA HYDRAULICZNEGO */
+        .station-viewport {
+          background: #060b17;
+          border: 1px solid #19253c;
+          border-radius: 16px;
+          padding: 30px 20px 20px 20px;
+          position: relative;
+          overflow-x: auto;
+          margin-bottom: 28px;
+        }
+
+        .station-inner {
+          min-width: 780px;
+          display: grid;
+          grid-template-columns: 190px 1fr 35px;
+          align-items: center;
+          position: relative;
+        }
+
+        /* Pionowe uchwyty montażowe ze stali */
+        .mount-bracket-1 {
+          position: absolute;
+          left: 215px;
+          top: -20px;
+          bottom: 40px;
+          width: 18px;
+          background: rgba(71, 85, 105, 0.45);
+          border-radius: 4px;
+          z-index: 1;
+        }
+        .mount-bracket-2 {
+          position: absolute;
+          right: 90px;
+          top: -20px;
+          bottom: 40px;
+          width: 18px;
+          background: rgba(71, 85, 105, 0.45);
+          border-radius: 4px;
+          z-index: 1;
+        }
+
+        /* LEWA KOLUMNA: TERMOMETRY ZEGAROWE I ETYKIETY BELEK */
+        .left-station-col {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          z-index: 5;
+        }
+
+        .gauge-section {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .gauge-circle {
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: radial-gradient(circle, #0f172a 55%, #020617 100%);
+          display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
-          font-size: 11px;
-          font-weight: 800;
-          color: #0f172a;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.7), inset 0 1px 3px rgba(255,255,255,0.15);
           position: relative;
-          z-index: 3;
+          flex-shrink: 0;
         }
-        .dial-red { border: 3px solid #ef4444; }
-        .dial-blue { border: 3px solid #0284c7; }
+        .gauge-red { border: 3.5px solid #ef4444; }
+        .gauge-blue { border: 3.5px solid #0284c7; }
 
-        .valve-brass-body {
-          width: 46px;
-          height: 22px;
-          background: var(--brass);
-          border-radius: 5px;
-          margin-top: -12px;
-          box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-          z-index: 2;
-        }
-
-        .valve-label {
-          font-size: 10px;
+        .gauge-dial-title {
+          font-size: 7px;
           font-weight: 800;
-          margin-top: 6px;
-          letter-spacing: 0.05em;
+          color: #94a3b8;
+          text-transform: uppercase;
         }
-        .lbl-red { color: #f87171; }
-        .lbl-blue { color: #38bdf8; }
+        .gauge-dial-temp {
+          font-size: 13px;
+          font-weight: 800;
+          color: #ffffff;
+        }
 
-        /* Belki i rury */
-        .pipes-column {
+        .gauge-meta {
           display: flex;
           flex-direction: column;
-          gap: 65px;
+          gap: 2px;
+        }
+        .gauge-bar-name {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+        }
+        .bar-name-red { color: #f87171; }
+        .bar-name-blue { color: #38bdf8; }
+        .gauge-bar-desc {
+          font-size: 12px;
+          font-weight: 700;
+          color: #ffffff;
+        }
+        .gauge-bar-formula {
+          font-size: 9px;
+          color: #94a3b8;
+        }
+
+        .delta-t-pill {
+          background: rgba(56, 189, 248, 0.1);
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          border-radius: 8px;
+          padding: 6px 12px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #38bdf8;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          width: fit-content;
+        }
+
+        /* GŁÓWNE BELKI STALOWE */
+        .station-pipes-col {
+          display: flex;
+          flex-direction: column;
+          gap: 90px;
           position: relative;
           padding: 30px 0;
           z-index: 2;
         }
 
-        .steel-pipe {
-          height: 38px;
+        .inox-pipe {
+          height: 42px;
           background: var(--steel);
-          border-radius: 6px;
+          border-radius: 8px;
           border: 1px solid #475569;
-          box-shadow: inset 0 2px 2px rgba(255,255,255,0.7), 0 6px 12px rgba(0,0,0,0.4);
+          box-shadow: inset 0 2px 3px rgba(255,255,255,0.85), 0 8px 18px rgba(0,0,0,0.6);
           position: relative;
         }
 
-        .rotameters-layer {
+        .inox-label {
           position: absolute;
-          top: -46px;
+          left: 16px;
+          top: 13px;
+          font-size: 9px;
+          font-weight: 800;
+          color: rgba(15, 23, 42, 0.45);
+          letter-spacing: 0.06em;
+          pointer-events: none;
+        }
+
+        /* WARSTWA ROTAMETRÓW (GÓRNA BELKA) */
+        .rotameters-row {
+          position: absolute;
+          top: -72px;
           left: 10px;
           right: 10px;
           display: flex;
           justify-content: space-around;
         }
 
-        .actuators-layer {
-          position: absolute;
-          top: 36px;
-          left: 10px;
-          right: 10px;
-          display: flex;
-          justify-content: space-around;
-        }
-
-        /* Szklany rotametr */
-        .rotameter-item {
+        .rotameter-station {
           display: flex;
           flex-direction: column;
           align-items: center;
-          width: 80px;
+          width: 85px;
           flex-shrink: 0;
+          position: relative;
+          cursor: pointer;
         }
 
-        .rot-blue-cap {
+        /* Górna plakietka z wartością przepływu (np. 2.4 l/min) */
+        .rot-top-badge {
+          background: #091224;
+          border: 1px solid #1e293b;
+          border-radius: 6px;
+          padding: 2px 7px;
+          font-size: 11px;
+          font-weight: 800;
+          color: #38bdf8;
+          margin-bottom: 6px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+          white-space: nowrap;
+          transition: all 0.15s;
+        }
+        .rotameter-station.active .rot-top-badge,
+        .rot-top-badge.gold {
+          background: #241804;
+          border-color: #f59e0b;
+          color: #f59e0b;
+        }
+
+        .rot-cylinder {
           width: 22px;
-          height: 9px;
-          background: #0284c7;
-          border-radius: 3px 3px 0 0;
-        }
-
-        .rot-glass-cylinder {
-          width: 18px;
-          height: 60px;
+          height: 68px;
           background: rgba(15, 23, 42, 0.85);
-          border: 1px solid #475569;
+          border: 1.5px solid #64748b;
           border-radius: 3px;
           position: relative;
           overflow: hidden;
-          box-shadow: inset 0 0 6px rgba(56, 189, 248, 0.2);
+          box-shadow: inset 0 0 6px rgba(56, 189, 248, 0.25);
         }
 
-        .rot-water-fill {
+        .rot-water-col {
           position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          bottom: 0; left: 0; right: 0;
           background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
           transition: height 0.3s;
         }
 
-        .rot-red-float {
+        .rot-red-disc {
           position: absolute;
-          left: 1px;
-          right: 1px;
-          height: 4px;
+          left: 2px; right: 2px;
+          height: 5px;
           background: #ef4444;
-          border-radius: 1px;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+          border-radius: 2px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.7);
           transition: bottom 0.3s;
         }
 
-        .rot-brass-nut {
-          width: 18px;
-          height: 8px;
+        .rot-collar {
+          width: 24px;
+          height: 9px;
           background: var(--brass);
           border-radius: 1px 1px 3px 3px;
         }
 
-        .nipple-red {
-          width: 7px;
-          height: 18px;
+        /* Czerwona pionowa rura schodząca z górnej belki w dół */
+        .vertical-transit-pipe {
+          position: absolute;
+          top: 104px;
+          width: 10px;
+          height: 70px;
           background: #ef4444;
-          border-radius: 2px;
-          margin-top: 1px;
-        }
-
-        /* Siłowniki białe */
-        .actuator-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          width: 80px;
-          flex-shrink: 0;
-        }
-
-        .actuator-body {
-          width: 26px;
-          height: 46px;
-          background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 100%);
-          border: 1px solid #94a3b8;
-          border-radius: 6px;
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-          padding-top: 6px;
-          box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-        }
-
-        .actuator-led {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: #22c55e;
-          box-shadow: 0 0 4px #22c55e;
-        }
-
-        .actuator-nut {
-          width: 18px;
-          height: 8px;
-          background: var(--brass);
-          border-radius: 2px;
-        }
-
-        /* Prawa strona: odpowietrzniki */
-        .vents-column {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          padding: 24px 0;
-          align-items: center;
-          z-index: 2;
-        }
-
-        .vent-tap {
-          width: 18px;
-          height: 38px;
-          background: var(--brass);
           border-radius: 3px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+          z-index: 1;
         }
 
-        /* KAFELKI SEKCJI POD BELKAMI */
-        .loops-cards-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-          gap: 12px;
-          margin-top: 55px;
-          padding-top: 15px;
-          border-top: 1px solid #1e293b;
+        /* WARSTWA SIŁOWNIKÓW (DOLNA BELKA) */
+        .actuators-row {
+          position: absolute;
+          top: -20px;
+          left: 10px;
+          right: 10px;
+          display: flex;
+          justify-content: space-around;
         }
 
-        .loop-card {
-          background: #091120;
-          border: 1px solid #1e293b;
-          border-radius: 10px;
-          padding: 10px 8px;
-          text-align: center;
-          transition: transform 0.15s, border-color 0.15s;
+        .actuator-station {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 85px;
+          flex-shrink: 0;
+          position: relative;
           cursor: pointer;
         }
-        .loop-card:hover {
+
+        .actuator-shell {
+          width: 32px;
+          height: 52px;
+          background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+          border: 1px solid #94a3b8;
+          border-radius: 8px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+          transition: all 0.15s;
+          z-index: 3;
+        }
+        .actuator-station.active .actuator-shell {
+          border: 2px solid #f59e0b;
+          box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+        }
+
+        .actuator-led-pill {
+          background: #14532d;
+          border: 1px solid #22c55e;
+          border-radius: 10px;
+          padding: 1px 5px;
+          font-size: 7px;
+          font-weight: 800;
+          color: #4ade80;
+        }
+
+        .actuator-sub-txt {
+          font-size: 6px;
+          font-weight: 700;
+          color: #64748b;
+        }
+
+        /* Króćce i podejścia rur pod dolną belką */
+        .bottom-feed-pipes {
+          margin-top: 26px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .brass-nipple {
+          width: 14px;
+          height: 8px;
+          background: var(--brass);
+          border-radius: 1px;
+        }
+        .pipe-drop {
+          width: 8px;
+          height: 28px;
+          border-radius: 2px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .pipe-drop-blue { background: #0284c7; }
+
+        .circuit-title {
+          margin-top: 8px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #cbd5e1;
+          text-align: center;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 85px;
+          transition: color 0.15s;
+        }
+        .actuator-station:hover .circuit-title,
+        .actuator-station.active .circuit-title {
+          color: #f59e0b;
+        }
+
+        /* PRAWA STRONA: ODPOWIETRZNIK I ZAWÓR */
+        .right-vents-col {
+          display: flex;
+          flex-direction: column;
+          gap: 90px;
+          align-items: center;
+          z-index: 5;
+        }
+        .brass-vent {
+          width: 16px;
+          height: 42px;
+          background: var(--brass);
+          border-radius: 4px;
+          border: 1px solid #ca8a04;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        /* DOLNY GRID KAFELKÓW PĘTLI ZGODNY ZE ZRZUTEM */
+        .grid-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .grid-title {
+          font-size: 0.85rem;
+          font-weight: 800;
+          color: #cbd5e1;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .grid-step-hint {
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: var(--cyan-acc);
+        }
+
+        .loops-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+          gap: 14px;
+        }
+
+        .loop-box {
+          background: var(--card-surface);
+          border: 1px solid #1e293b;
+          border-radius: 12px;
+          padding: 14px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          position: relative;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .loop-box:hover {
           border-color: #38bdf8;
           transform: translateY(-2px);
         }
 
-        .loop-room-name {
-          font-size: 0.85rem;
-          font-weight: 700;
-          color: #f8fafc;
+        /* ZAZNACZONY KAFELEK: AKTYWNA EDYCJA */
+        .loop-box.active {
+          border: 2px solid #f59e0b;
+          box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+        }
+        .active-edit-tag {
+          position: absolute;
+          top: -11px;
+          right: 12px;
+          background: #f59e0b;
+          color: #000000;
+          font-size: 9px;
+          font-weight: 900;
+          padding: 2px 8px;
+          border-radius: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .loop-top-meta {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .loop-num-area {
+          font-size: 0.7rem;
+          font-weight: 800;
+          color: var(--text-muted);
+          text-transform: uppercase;
+        }
+        .loop-status-pill {
+          font-size: 9px;
+          font-weight: 800;
+          padding: 2px 6px;
+          border-radius: 10px;
+        }
+        .pill-opt { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .pill-warn { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+        .pill-crit { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+        .loop-room-title {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: #ffffff;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .loop-flow-display {
-          font-size: 1.15rem;
-          font-weight: 800;
+        .loop-flow-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          padding-bottom: 6px;
+        }
+        .flow-val-lmin {
+          font-size: 1.25rem;
+          font-weight: 900;
           color: #38bdf8;
-          margin: 4px 0 2px 0;
+        }
+        .loop-box.active .flow-val-lmin { color: #f59e0b; }
+        .flow-val-lh {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #cbd5e1;
         }
 
-        .loop-subinfo {
-          font-size: 0.7rem;
+        .loop-details-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          font-size: 0.72rem;
           color: #94a3b8;
         }
-
-        .stepper-controls {
+        .detail-item {
           display: flex;
-          justify-content: center;
-          gap: 6px;
-          margin-top: 8px;
+          justify-content: space-between;
+        }
+        .detail-item strong {
+          color: #f1f5f9;
+        }
+        .detail-item.warn strong {
+          color: #f59e0b;
         }
 
+        /* STEPPER STEROWANIA [-] 0.1 [+] */
+        .stepper-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #060a14;
+          border: 1px solid #1e293b;
+          border-radius: 8px;
+          padding: 3px;
+          margin-top: 4px;
+        }
         .stepper-btn {
-          width: 28px;
-          height: 22px;
-          background: #1e293b;
-          border: 1px solid #334155;
-          color: #f8fafc;
-          border-radius: 5px;
+          width: 32px;
+          height: 26px;
+          background: #111d33;
+          border: 1px solid #1e293b;
+          color: #ffffff;
+          border-radius: 6px;
           font-weight: 800;
-          font-size: 13px;
+          font-size: 14px;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -498,21 +729,24 @@ class UnderfloorHeatingCard extends HTMLElement {
         .stepper-btn:hover {
           background: #0284c7;
           border-color: #38bdf8;
-          color: #ffffff;
+        }
+        .stepper-step-lbl {
+          font-size: 10px;
+          font-weight: 800;
+          color: #94a3b8;
         }
 
-        /* MODAL EDYCJI PĘTLI */
+        /* IN-CARD MODAL EDYCJI PĘTLI */
         .modal-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
           background: rgba(0, 0, 0, 0.75);
           backdrop-filter: blur(4px);
-          display: flex;
+          display: none;
           align-items: center;
           justify-content: center;
           z-index: 9999;
         }
-
         .modal-content {
           background: #0f172a;
           border: 1px solid #334155;
@@ -522,129 +756,139 @@ class UnderfloorHeatingCard extends HTMLElement {
           max-width: 420px;
           box-shadow: 0 16px 36px rgba(0,0,0,0.6);
         }
-
         .modal-header {
-          font-size: 1.1rem;
+          font-size: 1.15rem;
           font-weight: 800;
           color: #38bdf8;
           margin-bottom: 14px;
           padding-bottom: 8px;
           border-bottom: 1px solid #334155;
         }
-
-        .form-row {
-          margin-bottom: 12px;
-        }
-
+        .form-row { margin-bottom: 12px; }
         .form-row label {
-          display: block;
-          font-size: 0.75rem;
-          color: #94a3b8;
-          font-weight: 700;
-          margin-bottom: 4px;
-          text-transform: uppercase;
+          display: block; font-size: 0.75rem; color: #94a3b8; font-weight: 700; margin-bottom: 4px; text-transform: uppercase;
         }
-
         .form-row input, .form-row select {
-          width: 100%;
-          box-sizing: border-box;
-          padding: 9px 12px;
-          background: #090e1c;
-          border: 1px solid #334155;
-          border-radius: 8px;
-          color: #f8fafc;
-          font-size: 0.95rem;
-          outline: none;
+          width: 100%; box-sizing: border-box; padding: 9px 12px; background: #090e1c;
+          border: 1px solid #334155; border-radius: 8px; color: #f8fafc; font-size: 0.95rem; outline: none;
         }
-        .form-row input:focus, .form-row select:focus {
-          border-color: #38bdf8;
-        }
-
-        .modal-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 10px;
-          margin-top: 18px;
-        }
-
-        .btn-modal {
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 0.85rem;
-          font-weight: 700;
-          cursor: pointer;
-          border: none;
-        }
+        .form-row input:focus, .form-row select:focus { border-color: #38bdf8; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+        .btn-modal { padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: none; }
         .btn-save { background: #0284c7; color: white; }
-        .btn-save:hover { background: #0369a1; }
         .btn-cancel { background: #334155; color: #cbd5e1; }
-        .btn-cancel:hover { background: #475569; }
       </style>
 
       <div class="card-container">
-        <!-- Nagłówek -->
-        <div class="card-header">
-          <div class="header-left">
-            <div class="manifold-icon">#</div>
-            <div class="header-title-box">
-              <div class="header-title" id="card-title">Rozdzielacz Parter (6 obiegów)</div>
-              <div class="header-subtitle" id="card-subtitle">
-                Kotłownia / Parter • Przepływ całkowity: <b id="sum-flow-txt" style="color:#38bdf8">8.2 l/min</b> (<span id="sum-flow-lh-txt">492</span> l/h) • ΔT: <span style="color:#fbbf24">6.0°C</span> • Maks. Δp: <span style="color:#34d399">14.8 kPa</span>
-              </div>
+        <!-- 1. GŁÓWNY NAGŁÓWEK -->
+        <div class="main-header">
+          <div class="menu-btn" title="Opcje rozdzielacza">
+            <svg viewBox="0 0 24 24"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
+          </div>
+          <div class="title-block">
+            <div class="title-row">
+              <span class="manifold-title" id="card-title">Rozdzielacz Parter</span>
+              <span class="status-badge" id="card-status-badge">
+                <span style="font-size:8px;">●</span> <span id="card-status-txt">Zrównoważony hydraulicznie</span>
+              </span>
+            </div>
+            <div class="subtitle-row" id="card-subtitle">
+              Lokalizacja: Kotłownia / Parter • Posadzka bazowa: Wylewka anhydrytowa (45 mm, λ = 1.8 W/(m·K))
             </div>
           </div>
-          <div class="tabs-group" id="manifold-tabs"></div>
         </div>
 
-        <!-- Wizualizacja Rozdzielacza -->
-        <div class="manifold-station-wrapper">
-          <div class="manifold-viewport">
-            <!-- Uchwyty montażowe -->
-            <div class="bracket-1"></div>
-            <div class="bracket-2"></div>
+        <!-- 2. TRZY KARTY METRYK -->
+        <div class="metrics-cards-row">
+          <div class="metric-card">
+            <div class="metric-card-lbl">PRZEPŁYW SUMARYCZNY</div>
+            <div class="metric-card-val val-blue" id="stat-sum-flow">11.4 l/min (684 l/h)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-lbl">PĘTLA KRYTYCZNA (ΔP_MAX)</div>
+            <div class="metric-card-val val-gold" id="stat-crit-dp">18.4 kPa (184 mbar)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-lbl">RÓŻNICA ΔT</div>
+            <div class="metric-card-val val-green" id="stat-delta-t">6.0 °C (Moc: ~4.78 kW)</div>
+          </div>
+        </div>
 
-            <div class="station-layout">
-              <!-- Lewe zawory z termometrami -->
-              <div class="valves-column">
-                <div class="valve-unit">
-                  <div class="thermometer-dial dial-red">38°C</div>
-                  <div class="valve-brass-body"></div>
-                  <div class="valve-label lbl-red">ZASILANIE</div>
+        <!-- 3. FOTOREALISTYCZNY ROZDZIELACZ HYDRAULICZNY -->
+        <div class="station-viewport">
+          <div class="station-inner">
+            <div class="mount-bracket-1"></div>
+            <div class="mount-bracket-2"></div>
+
+            <!-- LEWA STRONA: TERMOMETRY ZEGAROWE -->
+            <div class="left-station-col">
+              <!-- Zasilanie 38.0°C -->
+              <div class="gauge-section">
+                <div class="gauge-circle gauge-red">
+                  <div class="gauge-dial-title">ZASILANIE</div>
+                  <div class="gauge-dial-temp">38.0°C</div>
                 </div>
-                <div class="valve-unit">
-                  <div class="thermometer-dial dial-blue">32°C</div>
-                  <div class="valve-brass-body"></div>
-                  <div class="valve-label lbl-blue">POWRÓT</div>
+                <div class="gauge-meta">
+                  <div class="gauge-bar-name bar-name-red">BELKA GÓRNA</div>
+                  <div class="gauge-bar-desc">Zasilająca</div>
+                  <div class="gauge-bar-formula">T_{zas} = 38°C</div>
                 </div>
               </div>
 
-              <!-- Belki stalowe -->
-              <div class="pipes-column">
-                <!-- Górna belka: zasilanie -->
-                <div class="steel-pipe">
-                  <div class="rotameters-layer" id="rotameters-layer"></div>
-                </div>
-                <!-- Dolna belka: powrót -->
-                <div class="steel-pipe">
-                  <div class="actuators-layer" id="actuators-layer"></div>
-                </div>
+              <!-- Pigułka ΔT -->
+              <div class="delta-t-pill">
+                <span>ΔT = 6.0°C</span>
+                <span style="color:#4ade80;font-size:10px;">(Optymalna)</span>
               </div>
 
-              <!-- Prawe odpowietrzniki -->
-              <div class="vents-column">
-                <div class="vent-tap" title="Odpowietrznik"></div>
-                <div class="vent-tap" title="Zawór spustowy"></div>
+              <!-- Powrót 32.0°C -->
+              <div class="gauge-section">
+                <div class="gauge-circle gauge-blue">
+                  <div class="gauge-dial-title">POWRÓT</div>
+                  <div class="gauge-dial-temp">32.0°C</div>
+                </div>
+                <div class="gauge-meta">
+                  <div class="gauge-bar-name bar-name-blue">BELKA DOLNA</div>
+                  <div class="gauge-bar-desc">Powrotna</div>
+                  <div class="gauge-bar-formula">T_{pow} = 32°C</div>
+                </div>
               </div>
             </div>
 
-            <!-- Kafelki pętli na dole -->
-            <div class="loops-cards-grid" id="loops-cards-grid"></div>
+            <!-- ŚRODEK: BELKI STALOWE + ROTAMETRY + SIŁOWNIKI -->
+            <div class="station-pipes-col">
+              <!-- Belka górna: Zasilanie -->
+              <div class="inox-pipe">
+                <span class="inox-label">INOX AISI 304 - ZASILANIE (FLOW)</span>
+                <div class="rotameters-row" id="rotameters-layer"></div>
+              </div>
+
+              <!-- Belka dolna: Powrót -->
+              <div class="inox-pipe">
+                <span class="inox-label">INOX AISI 304 - POWRÓT (RETURN)</span>
+                <div class="actuators-row" id="actuators-layer"></div>
+              </div>
+            </div>
+
+            <!-- PRAWA STRONA: ODPOWIETRZNIK -->
+            <div class="right-vents-col">
+              <div class="brass-vent" title="Odpowietrznik automatyczny i spust"></div>
+              <div class="brass-vent" title="Zawór spustowy"></div>
+            </div>
           </div>
         </div>
+
+        <!-- 4. DOLNY GRID KAFELKÓW PĘTLI -->
+        <div class="grid-header-row">
+          <div class="grid-title">SEKCJE PĘTLI GRZEWCZYCH (KLIKNIJ KAFELEK, ABY OTWORZYĆ IN-CARD MODAL EDYCJI)</div>
+          <div class="grid-step-hint">Krok regulacji rotametru: ±0.1 l/min</div>
+        </div>
+
+        <div class="loops-cards-grid" id="loops-cards-grid"></div>
       </div>
 
-      <!-- Modal edycji pętli -->
-      <div class="modal-overlay" id="edit-modal" style="display:none;">
+      <!-- MODAL EDYCJI PĘTLI -->
+      <div class="modal-overlay" id="edit-modal">
         <div class="modal-content">
           <div class="modal-header" id="modal-heading">Edytuj pętlę</div>
           <div class="form-row">
@@ -692,166 +936,232 @@ class UnderfloorHeatingCard extends HTMLElement {
     const manifolds = {};
     const loops = [];
 
-    // Zbieranie rozdzielaczy i pętli z Home Assistant
+    // Zbieranie rozdzielaczy i pętli z encji Home Assistant
     Object.keys(states).forEach(entityId => {
       const stateObj = states[entityId];
       if (!stateObj) return;
 
       if (entityId.includes("manifold_") && entityId.includes("_total_flow")) {
-        const mId = stateObj.attributes.manifold_id || entityId.split("manifold_")[1].split("_total_flow")[0];
-        manifolds[mId] = {
-          id: mId,
-          name: stateObj.attributes.friendly_name?.replace(" Sumaryczny przepływ", "") || mId,
-          sections_count: stateObj.attributes.sections_count || 6,
-          total_flow_lh: parseFloat(stateObj.state) || 0,
-        };
+        const match = entityId.match(/manifold_([a-zA-Z0-9_]+)_total_flow/);
+        if (match) {
+          const mId = match[1];
+          manifolds[mId] = {
+            id: mId,
+            name: stateObj.attributes.friendly_name || mId,
+            total_flow: parseFloat(stateObj.state) || 0.0,
+            sections_count: stateObj.attributes.sections_count || 6,
+            location: stateObj.attributes.location || "Kotłownia / Parter",
+            screed: stateObj.attributes.screed_type || "Wylewka anhydrytowa (45 mm, λ = 1.8 W/(m·K))",
+            status: stateObj.attributes.status || "Zrównoważony hydraulicznie",
+          };
+        }
       }
 
-      if (entityId.includes("rotameter_flow_lmin") || (entityId.includes("loop_") && entityId.includes("_status"))) {
+      if (entityId.includes("loop_") && (entityId.includes("_rotameter_flow_lmin") || entityId.includes("_rotameter_flow_lh"))) {
+        const isLmin = entityId.includes("lmin");
+        const val = parseFloat(stateObj.state) || 0.0;
         const attrs = stateObj.attributes || {};
-        if (attrs.section_number !== undefined || attrs.loop_id) {
+        const loopId = attrs.loop_id || entityId;
+
+        const existing = loops.find(l => l.id === loopId);
+        if (existing) {
+          if (isLmin) {
+            existing.flow_lmin = val;
+            existing.flow_lh = Math.round(val * 60);
+          } else {
+            existing.flow_lh = val;
+            existing.flow_lmin = parseFloat((val / 60.0).toFixed(1));
+          }
+        } else {
           loops.push({
+            id: loopId,
             entity_id: entityId,
-            loop_id: attrs.loop_id,
-            section: attrs.section_number || 1,
-            room: attrs.room_name || attrs.zone_name || `Pętla ${attrs.section_number || 1}`,
-            flow_lmin: parseFloat(stateObj.state) || parseFloat(attrs.current_flow_lmin) || 1.5,
-            flow_lh: parseFloat(attrs.current_flow_lh) || (parseFloat(stateObj.state) * 60) || 90,
-            req_lmin: parseFloat(attrs.required_flow_lmin) || 1.5,
-            length_m: parseFloat(attrs.loop_length_m) || 75.0,
-            dp_kpa: parseFloat(attrs.pressure_drop_kpa) || 8.5,
+            name: attrs.friendly_name || loopId,
+            room: attrs.room || attrs.zone_name || (attrs.friendly_name ? attrs.friendly_name.split(":")[1] || attrs.friendly_name : "Obieg"),
+            section: attrs.section_number || (loops.length + 1),
+            flow_lmin: isLmin ? val : parseFloat((val / 60.0).toFixed(1)),
+            flow_lh: isLmin ? Math.round(val * 60) : val,
+            length_m: attrs.estimated_length_m || 85.0,
+            area_m2: attrs.area_m2 || 14.0,
+            dp_kpa: attrs.pressure_drop_kpa || 12.5,
             screed: attrs.screed_type || "default",
-            area_m2: parseFloat(attrs.area_m2) || 15.0,
-            manifold_id: attrs.manifold_id || "parter",
+            manifold_id: attrs.manifold_id || Object.keys(manifolds)[0] || "parter",
           });
         }
       }
     });
 
-    // Jeśli integracja dopiero wystartowała lub brak encji, wczytaj 6 obiegów ze zdjęcia
-    if (Object.keys(manifolds).length === 0) {
-      manifolds["parter"] = { id: "parter", name: "Rozdzielacz Parter", sections_count: 6, total_flow_lh: 492 };
-      manifolds["pietro"] = { id: "pietro", name: "Rozdzielacz Piętro", sections_count: 5, total_flow_lh: 380 };
+    // Wzorcowe dane demonstracyjne odpowiadające zrzutowi
+    if (loops.length === 0) {
+      manifolds["parter"] = {
+        id: "parter",
+        name: "Rozdzielacz Parter",
+        location: "Kotłownia / Parter",
+        screed: "Posadzka bazowa: Wylewka anhydrytowa (45 mm, λ = 1.8 W/(m·K))",
+        status: "Zrównoważony hydraulicznie",
+      };
 
-      const defaultDemo = [
-        { sec: 1, room: "Salon 1", lmin: 1.8, area: 18.0, len: 78, screed: "default" },
-        { sec: 2, room: "Salon 2", lmin: 1.5, area: 16.5, len: 72, screed: "default" },
-        { sec: 3, room: "Kuchnia", lmin: 1.2, area: 12.0, len: 64, screed: "default" },
-        { sec: 4, room: "Łazienka", lmin: 1.6, area: 9.0, len: 55, screed: "default" },
-        { sec: 5, room: "Korytarz", lmin: 1.0, area: 7.5, len: 42, screed: "default" },
-        { sec: 6, room: "Gabinet", lmin: 1.1, area: 11.0, len: 58, screed: "default" },
+      const demo = [
+        { section: 1, room: "Salon - Strefa Okna", lmin: 2.4, area: 16.5, len: 113.3, dp: 16.8, status: "Optymalny", screed_txt: "Domyślna (Anh.)" },
+        { section: 2, room: "Salon - Strefa TV", lmin: 2.1, area: 14.0, len: 96.1, dp: 11.4, status: "Optymalny", screed_txt: "Domyślna (Anh.)" },
+        { section: 3, room: "Kuchnia i Jadalnia", lmin: 1.8, area: 12.0, len: 82.4, dp: 7.9, status: "Optymalny", screed_txt: "Domyślna (Anh.)" },
+        { section: 4, room: "Łazienka Parter", lmin: 1.4, area: 8.5, len: 58.4, dp: 3.8, status: "Optymalny", screed_txt: "Cementowa (Nadpis.)" },
+        { section: 5, room: "Gabinet / Biuro", lmin: 2.5, area: 14.5, len: 99.6, dp: 18.4, status: "Przewymiarowany", screed_txt: "Domyślna (Anh.)" },
+        { section: 6, room: "Hol / Wiatrołap", lmin: 1.2, area: 7.0, len: 48.1, dp: 2.4, status: "Akceptowalny", screed_txt: "Domyślna (Anh.)" },
       ];
 
-      defaultDemo.forEach(d => {
+      demo.forEach(d => {
         loops.push({
-          entity_id: `number.petla_parter_${d.sec}_rotameter_flow_lmin`,
-          loop_id: `petla_parter_${d.sec}`,
-          section: d.sec,
+          id: `petla_parter_${d.section}`,
+          name: `Pętla ${d.section}: ${d.room}`,
+          section: d.section,
           room: d.room,
           flow_lmin: d.lmin,
           flow_lh: Math.round(d.lmin * 60),
           length_m: d.len,
           area_m2: d.area,
-          screed: d.screed,
+          dp_kpa: d.dp,
+          status: d.status,
+          screed: d.screed_txt.includes("Cement") ? "cement" : "default",
+          screed_txt: d.screed_txt,
           manifold_id: "parter",
         });
       });
     }
 
-    if (!this._activeManifoldId || !manifolds[this._activeManifoldId]) {
-      this._activeManifoldId = Object.keys(manifolds)[0];
-    }
-
-    const currentM = manifolds[this._activeManifoldId];
-    this._currentLoops = loops.filter(l => l.manifold_id === this._activeManifoldId || !l.manifold_id);
+    this._currentLoops = loops;
     this._currentLoops.sort((a, b) => a.section - b.section);
 
-    // Zakładki rozdzielaczy (np. Parter (6) / Piętro (5))
-    const tabsContainer = this.shadowRoot.getElementById("manifold-tabs");
-    if (tabsContainer) {
-      tabsContainer.innerHTML = Object.values(manifolds).map(m => `
-        <button class="tab-btn ${m.id === this._activeManifoldId ? 'active' : 'inactive'}" data-mid="${m.id}">
-          ${m.name.replace("Rozdzielacz ", "")} (${m.sections_count || 6})
-        </button>
-      `).join("");
-
-      tabsContainer.querySelectorAll(".tab-btn").forEach(btn => {
-        btn.onclick = () => {
-          this._activeManifoldId = btn.getAttribute("data-mid");
-          this.updateCard();
-        };
-      });
-    }
-
-    // Podsumowanie rozdzielacza
+    // Wyliczenia sumaryczne
     const totalFlowLh = this._currentLoops.reduce((acc, l) => acc + (l.flow_lh || 0), 0);
     const totalFlowLmin = (totalFlowLh / 60.0).toFixed(1);
+    const maxDp = Math.max(...this._currentLoops.map(l => l.dp_kpa || 0), 0).toFixed(1);
+    const powerKw = ((totalFlowLh / 3600.0) * 4.186 * 6.0).toFixed(2);
 
-    const titleEl = this.shadowRoot.getElementById("card-title");
-    const flowTxt = this.shadowRoot.getElementById("sum-flow-txt");
-    const flowLhTxt = this.shadowRoot.getElementById("sum-flow-lh-txt");
+    // Aktualizacja kart metryk
+    const statFlow = this.shadowRoot.getElementById("stat-sum-flow");
+    const statDp = this.shadowRoot.getElementById("stat-crit-dp");
+    const statDt = this.shadowRoot.getElementById("stat-delta-t");
 
-    if (titleEl && currentM) titleEl.textContent = `${currentM.name} (${this._currentLoops.length} obiegów)`;
-    if (flowTxt) flowTxt.textContent = `${totalFlowLmin} l/min`;
-    if (flowLhTxt) flowLhTxt.textContent = `${Math.round(totalFlowLh)}`;
+    if (statFlow) statFlow.textContent = `${totalFlowLmin} l/min (${Math.round(totalFlowLh)} l/h)`;
+    if (statDp) statDp.textContent = `${maxDp} kPa (${Math.round(maxDp * 10)} mbar)`;
+    if (statDt) statDt.textContent = `6.0 °C (Moc: ~${powerKw} kW)`;
 
-    // Rysowanie rotametrów na górnej belce
+    // RYSOWANIE ROTAMETRÓW NA GÓRNEJ BELCE
     const rotLayer = this.shadowRoot.getElementById("rotameters-layer");
     if (rotLayer) {
-      rotLayer.innerHTML = this._currentLoops.map(loop => {
-        const fillPct = Math.min(Math.max((loop.flow_lmin / 4.0) * 100, 10), 92);
+      rotLayer.innerHTML = this._currentLoops.map((loop, idx) => {
+        const fillPct = Math.min(Math.max((loop.flow_lmin / 4.0) * 100, 15), 90);
+        const isSelected = idx === this._selectedLoopIndex;
         return `
-          <div class="rotameter-item" title="${loop.room}: ${loop.flow_lmin.toFixed(1)} l/min">
-            <div class="rot-blue-cap"></div>
-            <div class="rot-glass-cylinder">
-              <div class="rot-water-fill" style="height: ${fillPct}%;"></div>
-              <div class="rot-red-float" style="bottom: ${fillPct}%;"></div>
+          <div class="rotameter-station ${isSelected ? 'active' : ''}" data-idx="${idx}" title="${loop.room}: ${loop.flow_lmin.toFixed(1)} l/min">
+            <div class="rot-top-badge ${isSelected ? 'gold' : ''}">${loop.flow_lmin.toFixed(1)} l/min</div>
+            <div class="rot-cylinder">
+              <div class="rot-water-col" style="height: ${fillPct}%;"></div>
+              <div class="rot-red-disc" style="bottom: ${fillPct}%;"></div>
             </div>
-            <div class="rot-brass-nut"></div>
-            <div class="nipple-red"></div>
+            <div class="rot-collar"></div>
+            <!-- Czerwona rurka zasilania w dół -->
+            <div class="vertical-transit-pipe"></div>
           </div>
         `;
       }).join("");
+
+      rotLayer.querySelectorAll(".rotameter-station").forEach(el => {
+        el.onclick = () => {
+          const idx = parseInt(el.getAttribute("data-idx"));
+          this._selectLoop(idx);
+        };
+      });
     }
 
-    // Rysowanie siłowników na dolnej belce
+    // RYSOWANIE SIŁOWNIKÓW NA DOLNEJ BELCE
     const actLayer = this.shadowRoot.getElementById("actuators-layer");
     if (actLayer) {
-      actLayer.innerHTML = this._currentLoops.map(() => `
-        <div class="actuator-item">
-          <div class="actuator-nut"></div>
-          <div class="actuator-body">
-            <div class="actuator-led"></div>
+      actLayer.innerHTML = this._currentLoops.map((loop, idx) => {
+        const isSelected = idx === this._selectedLoopIndex;
+        return `
+          <div class="actuator-station ${isSelected ? 'active' : ''}" data-idx="${idx}">
+            <div class="actuator-shell">
+              <span class="actuator-led-pill">ON</span>
+              <span class="actuator-sub-txt">230V NC</span>
+            </div>
+            <div class="bottom-feed-pipes">
+              <div class="brass-nipple"></div>
+              <div class="pipe-drop pipe-drop-blue"></div>
+            </div>
+            <div class="circuit-title">#${loop.section} ${loop.room.split("-")[0].trim()}</div>
           </div>
-          <div class="nipple-red"></div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
+
+      actLayer.querySelectorAll(".actuator-station").forEach(el => {
+        el.onclick = () => {
+          const idx = parseInt(el.getAttribute("data-idx"));
+          this._selectLoop(idx);
+        };
+      });
     }
 
-    // Kafelki pętli na dole
+    // RYSOWANIE DOLNEGO GRIDU KAFELKÓW
     const grid = this.shadowRoot.getElementById("loops-cards-grid");
     if (grid) {
-      grid.innerHTML = this._currentLoops.map((loop, idx) => `
-        <div class="loop-card" data-idx="${idx}">
-          <div class="loop-room-name" title="${loop.room}">${loop.room}</div>
-          <div class="loop-flow-display">${loop.flow_lmin.toFixed(1)} <small style="font-size:0.65em">l/m</small></div>
-          <div class="loop-subinfo">${Math.round(loop.flow_lh)} l/h • ${Math.round(loop.length_m)}m</div>
-          <div class="stepper-controls" onclick="event.stopPropagation();">
-            <button class="stepper-btn" data-idx="${idx}" data-step="-0.1">-</button>
-            <button class="stepper-btn" data-idx="${idx}" data-step="+0.1">+</button>
-          </div>
-        </div>
-      `).join("");
+      grid.innerHTML = this._currentLoops.map((loop, idx) => {
+        const isSelected = idx === this._selectedLoopIndex;
+        const statusClass = (loop.status === "Optymalny" || !loop.status) ? "pill-opt" : (loop.status === "Przewymiarowany" ? "pill-warn" : "pill-crit");
+        const statusTxt = loop.status || "Optymalny";
 
-      // Kliknięcie w kafelek -> szybka edycja pętli
-      grid.querySelectorAll(".loop-card").forEach(card => {
-        card.onclick = () => {
-          const idx = parseInt(card.getAttribute("data-idx"));
-          this._openModal(idx);
+        return `
+          <div class="loop-box ${isSelected ? 'active' : ''}" data-idx="${idx}">
+            ${isSelected ? '<div class="active-edit-tag">AKTYWNA EDYCJA</div>' : ''}
+            <div class="loop-top-meta">
+              <span class="loop-num-area">PĘTLA #${loop.section} • ${loop.area_m2} M²</span>
+              <span class="loop-status-pill ${statusClass}">${statusTxt}</span>
+            </div>
+            <div class="loop-room-title" title="${loop.room}">${loop.room}</div>
+            
+            <div class="loop-flow-row">
+              <span class="flow-val-lmin">${loop.flow_lmin.toFixed(1)} <small style="font-size:0.65em">l/min</small></span>
+              <span class="flow-val-lh">${Math.round(loop.flow_lh)} l/h</span>
+            </div>
+
+            <div class="loop-details-grid">
+              <div class="detail-item">
+                <span>Długość rury:</span>
+                <strong>${loop.length_m} m</strong>
+              </div>
+              <div class="detail-item ${isSelected ? 'warn' : ''}">
+                <span>Spadek Δp:</span>
+                <strong>${loop.dp_kpa} kPa</strong>
+              </div>
+              <div class="detail-item">
+                <span>Posadzka:</span>
+                <span>${loop.screed_txt || (loop.screed === "cement" ? "Cementowa" : "Domyślna (Anh.)")}</span>
+              </div>
+            </div>
+
+            <div class="stepper-row" onclick="event.stopPropagation();">
+              <button class="stepper-btn" data-idx="${idx}" data-step="-0.1">[-]</button>
+              <span class="stepper-step-lbl">0.1</span>
+              <button class="stepper-btn" data-idx="${idx}" data-step="+0.1">[+]</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Kliknięcie w kafelek -> zaznaczenie lub otwarcie modala
+      grid.querySelectorAll(".loop-box").forEach(box => {
+        box.onclick = () => {
+          const idx = parseInt(box.getAttribute("data-idx"));
+          if (this._selectedLoopIndex === idx) {
+            this._openModal(idx);
+          } else {
+            this._selectLoop(idx);
+          }
         };
       });
 
-      // Steppery [-] [+]
+      // Przyciski [-] [+] regulacji przepływu
       grid.querySelectorAll(".stepper-btn").forEach(btn => {
         btn.onclick = e => {
           e.stopPropagation();
@@ -871,60 +1181,79 @@ class UnderfloorHeatingCard extends HTMLElement {
               value: isLmin ? newLmin : (newLmin * 60),
             });
           }
-          this.updateCard();
+          this._selectLoop(idx);
         };
       });
     }
   }
 
+  _selectLoop(idx) {
+    this._selectedLoopIndex = idx;
+    this.updateCard();
+  }
+
   _openModal(idx) {
-    this._editingLoopIndex = idx;
     const loop = this._currentLoops[idx];
     if (!loop) return;
 
-    this.shadowRoot.getElementById("modal-heading").textContent = `Edycja pętli: ${loop.room} (Sekcja ${loop.section})`;
-    this.shadowRoot.getElementById("modal-inp-room").value = loop.room;
-    this.shadowRoot.getElementById("modal-inp-area").value = loop.area_m2;
-    this.shadowRoot.getElementById("modal-inp-flow").value = loop.flow_lmin.toFixed(1);
-    this.shadowRoot.getElementById("modal-inp-screed").value = loop.screed || "default";
+    this._selectedLoopIndex = idx;
+    const modal = this.shadowRoot.getElementById("edit-modal");
+    const heading = this.shadowRoot.getElementById("modal-heading");
+    const inpRoom = this.shadowRoot.getElementById("modal-inp-room");
+    const inpArea = this.shadowRoot.getElementById("modal-inp-area");
+    const inpFlow = this.shadowRoot.getElementById("modal-inp-flow");
+    const inpScreed = this.shadowRoot.getElementById("modal-inp-screed");
 
-    this.shadowRoot.getElementById("edit-modal").style.display = "flex";
+    if (heading) heading.textContent = `Edytuj Pętlę #${loop.section} (${loop.room})`;
+    if (inpRoom) inpRoom.value = loop.room;
+    if (inpArea) inpArea.value = loop.area_m2 || 15.0;
+    if (inpFlow) inpFlow.value = loop.flow_lmin || 1.5;
+    if (inpScreed) inpScreed.value = loop.screed || "default";
+
+    if (modal) modal.style.display = "flex";
   }
 
   _closeModal() {
-    this.shadowRoot.getElementById("edit-modal").style.display = "none";
-    this._editingLoopIndex = null;
+    const modal = this.shadowRoot.getElementById("edit-modal");
+    if (modal) modal.style.display = "none";
   }
 
   _saveModal() {
-    if (this._editingLoopIndex === null) return;
-    const loop = this._currentLoops[this._editingLoopIndex];
+    if (this._selectedLoopIndex === null) return;
+    const loop = this._currentLoops[this._selectedLoopIndex];
     if (!loop) return;
 
-    const newRoom = this.shadowRoot.getElementById("modal-inp-room").value.trim() || loop.room;
-    const newArea = parseFloat(this.shadowRoot.getElementById("modal-inp-area").value) || loop.area_m2;
-    const newFlow = parseFloat(this.shadowRoot.getElementById("modal-inp-flow").value) || loop.flow_lmin;
-    const newScreed = this.shadowRoot.getElementById("modal-inp-screed").value;
+    const inpRoom = this.shadowRoot.getElementById("modal-inp-room");
+    const inpArea = this.shadowRoot.getElementById("modal-inp-area");
+    const inpFlow = this.shadowRoot.getElementById("modal-inp-flow");
+    const inpScreed = this.shadowRoot.getElementById("modal-inp-screed");
+
+    const newRoom = inpRoom ? inpRoom.value.trim() : loop.room;
+    const newArea = inpArea ? parseFloat(inpArea.value) : loop.area_m2;
+    const newFlow = inpFlow ? parseFloat(inpFlow.value) : loop.flow_lmin;
+    const newScreed = inpScreed ? inpScreed.value : loop.screed;
 
     loop.room = newRoom;
     loop.area_m2 = newArea;
     loop.flow_lmin = newFlow;
     loop.flow_lh = Math.round(newFlow * 60);
     loop.screed = newScreed;
-    loop.length_m = Math.round((newArea / 0.15) * 1.03 + 8);
+    loop.screed_txt = newScreed === "cement" ? "Cementowa (Nadpis.)" : "Domyślna (Anh.)";
 
-    // Wywołaj usługi Home Assistant w tle
     if (this._hass) {
-      if (loop.loop_id) {
-        this._hass.callService("underfloor_heating", "update_loop", {
-          loop_id: loop.loop_id,
-          name: newRoom,
-        });
-        this._hass.callService("underfloor_heating", "set_rotameter_flow", {
-          loop_id: loop.loop_id,
-          rotameter_flow_lh: loop.flow_lh,
+      if (loop.entity_id) {
+        const isLmin = loop.entity_id.includes("lmin");
+        this._hass.callService("number", "set_value", {
+          entity_id: loop.entity_id,
+          value: isLmin ? newFlow : (newFlow * 60),
         });
       }
+      this._hass.callService("underfloor_heating", "update_loop", {
+        loop_id: loop.id,
+        name: `Pętla ${loop.section}: ${newRoom}`,
+        area_m2: newArea,
+        screed_type: newScreed === "default" ? "anhydrite" : newScreed,
+      }).catch(() => {});
     }
 
     this._closeModal();
@@ -936,7 +1265,7 @@ customElements.define("underfloor-heating-card", UnderfloorHeatingCard);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "underfloor-heating-card",
-  name: "Underfloor Heating Manifold Card",
+  name: "Rozdzielacz Podłogówki (Visual)",
+  description: "Fotorealistyczna wizualizacja rozdzielacza hydraulicznego ogrzewania podłogowego 1:1.",
   preview: true,
-  description: "Interaktywny rozdzielacz podłogówki z rotametrami i regulacją l/min (RWD)"
 });

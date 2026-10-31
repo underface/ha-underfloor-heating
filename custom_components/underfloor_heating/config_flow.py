@@ -22,7 +22,7 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, selector
 import voluptuous as vol
 
 from .calculations import calculate_thermal_properties
@@ -74,6 +74,29 @@ SCREED_OVERRIDE_CHOICES = {
     "dry_screed": "Sucha zabudowa (płyty gipsowo-włóknowe)",
 }
 
+SCREED_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[
+            {"value": "cement", "label": "Wylewka cementowa tradycyjna"},
+            {"value": "anhydrite", "label": "Wylewka anhydrytowa płynna"},
+            {"value": "dry_screed", "label": "Sucha zabudowa (płyty gipsowo-włóknowe)"},
+        ],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+
+SCREED_OVERRIDE_SELECTOR = selector.SelectSelector(
+    selector.SelectSelectorConfig(
+        options=[
+            {"value": "default", "label": "Domyślna rozdzielacza"},
+            {"value": "cement", "label": "Wylewka cementowa tradycyjna"},
+            {"value": "anhydrite", "label": "Wylewka anhydrytowa płynna"},
+            {"value": "dry_screed", "label": "Sucha zabudowa (płyty gipsowo-włóknowe)"},
+        ],
+        mode=selector.SelectSelectorMode.DROPDOWN,
+    )
+)
+
 
 def _generate_default_loops_for_manifold(
     manifold_id: str,
@@ -116,6 +139,58 @@ def _generate_default_loops_for_manifold(
     return result
 
 
+def _sync_zones_from_loops(loops_dict: dict, manifolds_dict: dict) -> dict:
+    """Automatycznie grupuje pętle w pomieszczenia (strefy) i sumuje metraże oraz liczbę pętli."""
+    zones: dict = {}
+    for loop_id, loop_data in loops_dict.items():
+        raw_room = loop_data.get("zone_name", "").strip() or loop_data.get("name", "Strefa")
+        # Wyciągnij czystą nazwę pomieszczenia np. z "Pętla 1: Salon" -> "Salon"
+        room_name = raw_room.split(":", 1)[1].strip() if ":" in raw_room else raw_room
+        if not room_name:
+            room_name = f"Obwód {loop_data.get('section_number', 1)}"
+
+        m_id = loop_data.get("manifold_id", "rozdzielacz")
+        z_id = _make_manifold_id(room_name)
+        if not z_id:
+            z_id = f"strefa_{loop_data.get('section_number', 1)}"
+
+        loop_data["zone_id"] = z_id
+        loop_data["zone_name"] = room_name
+
+        area = float(loop_data.get("area_m2", 15.0))
+        screed = loop_data.get("screed_type") or manifolds_dict.get(m_id, {}).get("screed_type", "cement")
+        thick = float(
+            loop_data.get("screed_thickness_mm")
+            or manifolds_dict.get(m_id, {}).get("screed_thickness_mm", 50.0)
+        )
+
+        if z_id not in zones:
+            zones[z_id] = {
+                "name": room_name,
+                "manifold_id": m_id,
+                "area_m2": 0.0,
+                "screed_type": screed,
+                "screed_thickness_mm": thick,
+                "loops_count": 0,
+                "loops": [],
+                "target_temp": 21.0,
+                "heat_load_w_m2": 45.0,
+                "floor_covering": "tiles",
+            }
+
+        zones[z_id]["area_m2"] = round(zones[z_id]["area_m2"] + area, 2)
+        zones[z_id]["loops_count"] += 1
+        zones[z_id]["loops"].append(loop_id)
+
+    # Zaktualizuj loops_in_zone dla każdej pętli
+    for loop_id, loop_data in loops_dict.items():
+        z_id = loop_data.get("zone_id")
+        if z_id in zones:
+            loop_data["loops_in_zone"] = zones[z_id]["loops_count"]
+
+    return zones
+
+
 def _make_manifold_id(name: str) -> str:
     """Tworzy bezpieczny identyfikator na podstawie nazwy rozdzielacza."""
     m_id = (
@@ -156,7 +231,7 @@ def _build_loops_schema(sections_count: int, existing_loops: dict, manifold_id: 
         fields[vol.Required(f"loop_{i}_flow", default=default_flow)] = vol.All(
             vol.Coerce(float), vol.Range(min=0.1, max=6.0)
         )
-        fields[vol.Optional(f"loop_{i}_screed", default=default_screed)] = vol.In(SCREED_OVERRIDE_CHOICES)
+        fields[vol.Optional(f"loop_{i}_screed", default=default_screed)] = SCREED_OVERRIDE_SELECTOR
 
     return vol.Schema(fields, extra=vol.ALLOW_EXTRA)
 
@@ -227,7 +302,7 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Coerce(int), vol.Range(min=1, max=24)
                 ),
                 vol.Optional("location", default="Kotłownia / Parter"): cv.string,
-                vol.Required("screed_type", default="cement"): vol.In(SCREED_CHOICES),
+                vol.Required("screed_type", default="cement"): SCREED_SELECTOR,
                 vol.Required("screed_thickness_mm", default=50.0): vol.Coerce(float),
             },
             extra=vol.ALLOW_EXTRA,
@@ -276,6 +351,11 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     l["screed_override"] = screed_override
                     l[ATTR_ROTAMETER_FLOW_LH] = flow_lh
                     l[ATTR_ROTAMETER_FLOW_LMIN] = flow_lmin
+
+            # Zsynchronizuj i zsumuj pomieszczenia (strefy)
+            self._pending_data[CONF_ZONES] = _sync_zones_from_loops(
+                self._pending_data[CONF_LOOPS], self._pending_data[CONF_MANIFOLDS]
+            )
 
             return self.async_create_entry(title=DEFAULT_NAME, data=self._pending_data)
 
@@ -390,7 +470,7 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Coerce(int), vol.Range(min=1, max=24)
                 ),
                 vol.Optional("location", default="Kotłownia / Parter"): cv.string,
-                vol.Required("screed_type", default="cement"): vol.In(SCREED_CHOICES),
+                vol.Required("screed_type", default="cement"): SCREED_SELECTOR,
                 vol.Required("screed_thickness_mm", default=50.0): vol.Coerce(float),
             },
             extra=vol.ALLOW_EXTRA,
@@ -476,16 +556,10 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
                     l[ATTR_ROTAMETER_FLOW_LH] = flow_lh
                     l[ATTR_ROTAMETER_FLOW_LMIN] = flow_lmin
 
-                    # Utwórz/aktualizuj wirtualną strefę
-                    z_id = _make_manifold_id(room_name) or f"strefa_{i}"
-                    self.options[CONF_ZONES][z_id] = {
-                        "name": room_name,
-                        "manifold_id": m_id,
-                        "area_m2": area,
-                        "screed_type": screed,
-                        "screed_thickness_mm": thickness,
-                        "loops_count": 1,
-                    }
+            # Zsynchronizuj i zsumuj pomieszczenia (strefy)
+            self.options[CONF_ZONES] = _sync_zones_from_loops(
+                self.options[CONF_LOOPS], self.options[CONF_MANIFOLDS]
+            )
 
             return self.async_create_entry(title="", data=self.options)
 
