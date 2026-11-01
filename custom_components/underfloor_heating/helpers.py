@@ -92,3 +92,4 @@ def get_loop_device_info(
         suggested_area=room_name,
         via_device=parent_via,
     )
+

@@ -93,26 +93,50 @@ URL_BASE = f"/{DOMAIN}_frontend"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Konfiguracja integracji oraz rejestracja zasobów frontendowych (HACS)."""
+    """Konfiguracja integracji oraz rejestracja zasobów frontendowych (HACS) i panelu bocznego."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Rejestracja karty Lovelace (statyczny plik JS)
     frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
     card_file = os.path.join(frontend_dir, "underfloor-heating-card.js")
+    panel_file = os.path.join(frontend_dir, "underfloor-heating-panel.js")
 
-    if os.path.exists(card_file):
+    if os.path.exists(frontend_dir):
         try:
             from homeassistant.components.http import StaticPathConfig
 
-            await hass.http.async_register_static_paths([
-                StaticPathConfig(f"{URL_BASE}/underfloor-heating-card.js", card_file, False)
-            ])
-            _LOGGER.debug("Zarejestrowano kartę Lovelace w ścieżce: %s/underfloor-heating-card.js", URL_BASE)
+            paths = [
+                StaticPathConfig(URL_BASE, frontend_dir, False),
+            ]
+            if os.path.exists(card_file):
+                paths.append(StaticPathConfig(f"{URL_BASE}/underfloor-heating-card.js", card_file, False))
+            if os.path.exists(panel_file):
+                paths.append(StaticPathConfig(f"{URL_BASE}/underfloor-heating-panel.js", panel_file, False))
+
+            await hass.http.async_register_static_paths(paths)
+            _LOGGER.debug("Zarejestrowano zasoby frontendowe w ścieżce: %s", URL_BASE)
         except Exception:
             try:
-                hass.http.register_static_path(f"{URL_BASE}/underfloor-heating-card.js", card_file, False)
+                hass.http.register_static_path(URL_BASE, frontend_dir, False)
             except Exception as err:
-                _LOGGER.warning("Nie udało się zarejestrować karty frontend: %s", err)
+                _LOGGER.warning("Nie udało się zarejestrować zasobów frontend: %s", err)
+
+    # Rejestracja dedykowanego panelu bocznego w menu głównym Home Assistant
+    try:
+        from homeassistant.components import panel_custom
+
+        await panel_custom.async_register_panel(
+            hass=hass,
+            frontend_url_path="underfloor_heating",
+            webcomponent_name="underfloor-heating-panel",
+            sidebar_title="Podłogówka",
+            sidebar_icon="mdi:heating-coil",
+            module_url=f"{URL_BASE}/underfloor-heating-panel.js",
+            config={},
+            require_admin=False,
+        )
+        _LOGGER.info("Zarejestrowano dedykowany panel boczny 'Podłogówka' w menu bocznym HA")
+    except Exception as err:
+        _LOGGER.debug("Błąd rejestracji panelu bocznego panel_custom: %s", err)
 
     return True
 

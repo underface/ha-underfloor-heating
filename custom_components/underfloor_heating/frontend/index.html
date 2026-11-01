@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rozdzielacz Parter - Ogrzewanie Podłogowe (RWD)</title>
+  <script>
+    window.tailwind = {
+      config: {
+        corePlugins: {
+          preflight: false,
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-card: #080e1b;
+      --card-surface: #0c1527;
+      --border: #1e293b;
+      --text-main: #ffffff;
+      --text-muted: #94a3b8;
+      --cyan-acc: #38bdf8;
+      --gold-acc: #f59e0b;
+      --green-acc: #22c55e;
+      --danger-acc: #ef4444;
+      --steel: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 20%, #94a3b8 50%, #475569 80%, #cbd5e1 100%);
+      --brass: linear-gradient(180deg, #fef08a 0%, #eab308 50%, #854d0e 85%, #fef08a 100%);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #040812; color: var(--text-main); padding: 16px; line-height: 1.5; min-height: 100vh; }
+    .wrapper { max-width: 1240px; margin: 0 auto; }
+
+    /* GŁÓWNA KARTA STACJI HYDRAULICZNEJ */
+    .card-container {
+      background: var(--bg-card);
+      border-radius: 18px;
+      padding: 24px;
+      border: 1px solid #1e293b;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      user-select: none;
+    }
+
+    /* 1. GŁÓWNY NAGŁÓWEK */
+    .main-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .menu-btn {
+      width: 40px;
+      height: 40px;
+      background: #0f1c33;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cyan-acc);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .menu-btn:hover {
+      background: #1e293b;
+      border-color: #38bdf8;
+      transform: scale(1.05);
+    }
+    .menu-btn svg { width: 22px; height: 22px; fill: currentColor; }
+
+    .title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .manifold-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+    }
+    .header-action-btn {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: #38bdf8;
+      border-radius: 10px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      margin-left: auto;
+    }
+    .header-action-btn:hover {
+      background: rgba(56, 189, 248, 0.3);
+      border-color: #38bdf8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+    }
+    .subtitle-row {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* 2. TRZY KARTY METRYK NA GÓRZE */
+    .metrics-cards-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: var(--card-surface);
+      border: 1px solid #1b263b;
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .metric-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .metric-val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .metric-val.cyan { color: var(--cyan-acc); }
+    .metric-val.gold { color: var(--gold-acc); }
+    .metric-val.green { color: #4ade80; }
+
+    /* 3. WIZUALIZACJA BELKI I HYDRAULIKI */
+    .manifold-stage {
+      position: relative;
+      display: flex;
+      gap: 20px;
+      padding: 24px 14px;
+      background: radial-gradient(circle at 50% 50%, #0d172e 0%, #080f1e 100%);
+      border: 1px solid #152033;
+      border-radius: 14px;
+      margin-bottom: 28px;
+      overflow-x: auto;
+    }
+
+    /* Lewa kolumna zegarów */
+    .dials-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      width: 175px;
+      flex-shrink: 0;
+      gap: 26px;
+    }
+    .gauge-card {
+      background: rgba(15, 25, 45, 0.7);
+      border: 1px solid #1e2c45;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .gauge-round {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #090e1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+    }
+    .gauge-round.hot { border: 2.5px solid #ef4444; }
+    .gauge-round.cold { border: 2.5px solid #38bdf8; }
+    .gauge-lbl { font-size: 0.52rem; font-weight: 800; text-transform: uppercase; color: #94a3b8; }
+    .gauge-num { font-size: 0.88rem; font-weight: 800; color: #ffffff; line-height: 1; }
+
+    .gauge-meta { display: flex; flex-direction: column; gap: 2px; }
+    .gauge-meta-title { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); }
+    .gauge-meta-name { font-size: 0.75rem; font-weight: 700; color: #ffffff; }
+    .gauge-meta-sub { font-size: 0.68rem; color: #94a3b8; font-family: monospace; }
+
+    .delta-badge-center {
+      background: rgba(15, 25, 45, 0.7);
+      border: 1px solid #1e2c45;
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .delta-val { color: #ffffff; font-family: monospace; }
+    .delta-status { color: #4ade80; font-size: 0.68rem; }
+
+    /* Prawa strefa rur i belek */
+    .pipes-station {
+      position: relative;
+      flex: 1;
+      min-width: 650px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 290px;
+    }
+
+    .pipe-bracket-left, .pipe-bracket-right {
+      position: absolute;
+      top: 10px;
+      bottom: 25px;
+      width: 14px;
+      background: linear-gradient(90deg, #334155 0%, #64748b 50%, #1e293b 100%);
+      border-radius: 4px;
+      z-index: 1;
+      opacity: 0.75;
+    }
+    .pipe-bracket-left { left: 8px; }
+    .pipe-bracket-right { right: 8px; }
+
+    .manifold-bar {
+      position: relative;
+      height: 28px;
+      background: var(--steel);
+      border-radius: 4px;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.8), 0 5px 12px rgba(0,0,0,0.8);
+      z-index: 2;
+    }
+    .manifold-bar.top { margin-top: 80px; margin-bottom: 75px; }
+    .manifold-bar.bottom { margin-bottom: 20px; }
+
+    .bar-cap-left {
+      position: absolute;
+      left: -8px;
+      top: -3px;
+      width: 10px;
+      height: 34px;
+      background: var(--brass);
+      border-radius: 3px;
+      box-shadow: -2px 0 6px rgba(0,0,0,0.5);
+    }
+    .bar-cap-left.red { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); }
+    .bar-cap-left.blue { background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%); }
+
+    .bar-vent-right {
+      position: absolute;
+      right: -10px;
+      top: -12px;
+      width: 16px;
+      height: 48px;
+      background: var(--brass);
+      border-radius: 4px;
+      box-shadow: 2px 0 6px rgba(0,0,0,0.5);
+    }
+
+    .circuit-stations-grid {
+      position: absolute;
+      top: 0;
+      left: 35px;
+      right: 35px;
+      bottom: 0;
+      display: flex;
+      justify-content: space-around;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .rot-station {
+      position: absolute;
+      top: 14px;
+      width: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .rot-station.active .rot-top-badge {
+      background: #f59e0b;
+      color: #000;
+      font-weight: 800;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+    }
+    .rot-top-badge {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 5px;
+      color: #38bdf8;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      white-space: nowrap;
+      margin-bottom: 5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      transition: all 0.2s ease;
+    }
+    .rot-cylinder {
+      width: 18px;
+      height: 52px;
+      background: rgba(224, 242, 254, 0.12);
+      border: 1.5px solid rgba(255, 255, 255, 0.7);
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 6px rgba(56, 189, 248, 0.25);
+    }
+    .rot-water {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.7) 0%, rgba(14, 165, 233, 0.9) 100%);
+      transition: height 0.3s ease;
+    }
+    .rot-disc {
+      position: absolute;
+      left: 1px;
+      right: 1px;
+      height: 5px;
+      background: #ef4444;
+      border-radius: 1px;
+      box-shadow: 0 0 4px #ef4444;
+      transition: bottom 0.3s ease;
+    }
+    .rot-collar {
+      width: 24px;
+      height: 8px;
+      background: var(--brass);
+      border-radius: 2px;
+      margin-top: 1px;
+    }
+    .transit-pipe {
+      width: 14px;
+      height: 60px;
+      background: linear-gradient(90deg, #ef4444 0%, #dc2626 50%, #991b1b 100%);
+      border-radius: 2px;
+      margin-top: 28px;
+      opacity: 0.9;
+    }
+
+    .act-station {
+      position: absolute;
+      top: 154px;
+      width: 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .act-shell {
+      width: 32px;
+      height: 44px;
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 60%, #cbd5e1 100%);
+      border-radius: 7px;
+      border: 1px solid #94a3b8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      transition: all 0.2s ease;
+    }
+    .act-station.active .act-shell {
+      border: 2px solid #f59e0b;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+    }
+    .act-led-pill {
+      width: 14px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 4px;
+      font-size: 0.45rem;
+      font-weight: 900;
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 5px #22c55e;
+    }
+    .act-sub-txt {
+      font-size: 0.45rem;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .bottom-feed-pipes {
+      display: flex;
+      gap: 4px;
+      margin-top: 26px;
+    }
+    .brass-nipple {
+      width: 10px;
+      height: 8px;
+      background: var(--brass);
+      border-radius: 2px;
+    }
+    .pipe-drop {
+      width: 10px;
+      height: 28px;
+      background: linear-gradient(90deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%);
+      border-radius: 2px;
+    }
+    .circuit-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      margin-top: 4px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    }
+
+    /* 4. DOLNA SEKCJA KAFELKÓW PĘTLI */
+    .grid-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .grid-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .grid-sub-hint {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--cyan-acc);
+    }
+
+    .loops-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .loop-box {
+      background: var(--card-surface);
+      border: 1px solid #1a273e;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .loop-box:hover {
+      border-color: #2b3d5c;
+      transform: translateY(-2px);
+    }
+    .loop-box.active {
+      border: 2px solid var(--gold-acc);
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+      background: #0f1c33;
+    }
+    .active-edit-tag {
+      position: absolute;
+      top: -9px;
+      right: 12px;
+      background: var(--gold-acc);
+      color: #000;
+      font-size: 0.58rem;
+      font-weight: 900;
+      padding: 1px 7px;
+      border-radius: 10px;
+      letter-spacing: 0.04em;
+    }
+    .loop-top-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .loop-num-area {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #cbd5e1;
+      text-transform: uppercase;
+    }
+    .loop-status-pill {
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .pill-opt { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .pill-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .pill-crit { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    .loop-room-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .loop-flow-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .flow-val-lmin {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: var(--cyan-acc);
+    }
+    .flow-val-lh {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .loop-details-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.72rem;
+      margin-bottom: 10px;
+    }
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+    }
+    .detail-val {
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .stepper-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: auto;
+    }
+    .step-btn {
+      flex: 1;
+      height: 28px;
+      background: #152238;
+      border: 1px solid #233554;
+      border-radius: 6px;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .step-btn:hover {
+      background: var(--cyan-acc);
+      color: #000;
+    }
+    .step-hint-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      padding: 0 4px;
+    }
+
+    /* MODAL SZYBKIEJ EDYCJI POJEDYNCZEJ PĘTLI */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .modal-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+    }
+    .modal-head {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--cyan-acc);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+    .form-group label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .form-group input, .form-group select {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #ffffff;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--cyan-acc);
+    }
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .modal-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+    }
+    .modal-btn.cancel { background: #334155; color: #fff; }
+    .modal-btn.save { background: var(--cyan-acc); color: #000; }
+
+    /* Custom scrollbar dla modala konfiguracji */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card-container">
+      
+      <!-- 1. GŁÓWNY NAGŁÓWEK -->
+      <div class="main-header">
+        <button class="menu-btn" onclick="openRoomsModal()" title="Otwórz konfigurator pomieszczeń i pętli">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2z"/></svg>
+        </button>
+        <div class="title-block">
+          <div class="title-row">
+            <h1 class="manifold-title" id="manifold-title-text">Rozdzielacz Parter (<span id="manifold-circuits-count">5 obiegów</span>)</h1>
+            <span class="status-badge" id="manifold-status-badge">
+              <span class="status-dot"></span>
+              Zrównoważony hydraulicznie
+            </span>
+            <button onclick="openRoomsModal()" class="header-action-btn" title="Grupuj pętle według pomieszczeń">
+              ⚙️ Konfiguracja pętli (Pomieszczenia)
+            </button>
+          </div>
+          <div class="subtitle-row">
+            Lokalizacja: Kotłownia / Parter • Posadzka bazowa: Wylewka anhydrytowa (45 mm, λ = 1.8 W/m·K)
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. TRZY KARTY METRYK -->
+      <div class="metrics-cards-row">
+        <div class="metric-card">
+          <div class="metric-title">Przepływ sumaryczny</div>
+          <div class="metric-val cyan" id="stat-sum-flow">7.5 l/min (450 l/h)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Pętla krytyczna (Δp_max)</div>
+          <div class="metric-val gold" id="stat-crit-dp">18.4 kPa (184 mbar)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Różnica ΔT i Moc kW</div>
+          <div class="metric-val green" id="stat-delta-t">6.0 °C (Moc: ~4.78 kW)</div>
+        </div>
+      </div>
+
+      <!-- 3. BELKI INOX ROZDZIELACZA -->
+      <div class="manifold-stage">
+        
+        <!-- Lewa kolumna wskaźników zegarowych -->
+        <div class="dials-column">
+          <div class="gauge-card">
+            <div class="gauge-round hot">
+              <span class="gauge-lbl">ZASILANIE</span>
+              <span class="gauge-num">38°C</span>
+            </div>
+            <div class="gauge-meta">
+              <span class="gauge-meta-title">Belka Górna</span>
+              <span class="gauge-meta-name">Zasilająca</span>
+              <span class="gauge-meta-sub">T_zas = 38°C</span>
+            </div>
+          </div>
+
+          <div class="delta-badge-center">
+            <span>ΔT = 6.0°C</span>
+            <span class="delta-status">(Optymalna)</span>
+          </div>
+
+          <div class="gauge-card">
+            <div class="gauge-round cold">
+              <span class="gauge-lbl">POWRÓT</span>
+              <span class="gauge-num">32°C</span>
+            </div>
+            <div class="gauge-meta">
+              <span class="gauge-meta-title">Belka Dolna</span>
+              <span class="gauge-meta-name">Powrotna</span>
+              <span class="gauge-meta-sub">T_pow = 32°C</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prawa stacja belek Inox -->
+        <div class="pipes-station" id="manifold-station-area">
+          <div class="pipe-bracket-left"></div>
+          <div class="pipe-bracket-right"></div>
+
+          <!-- Belka górna (Zasilanie) -->
+          <div class="manifold-bar top">
+            <div class="bar-cap-left red"></div>
+            <div class="bar-vent-right"></div>
+          </div>
+
+          <!-- Belka dolna (Powrót) -->
+          <div class="manifold-bar bottom">
+            <div class="bar-cap-left blue"></div>
+            <div class="bar-vent-right"></div>
+          </div>
+
+          <!-- Obwody pętli (generowane dynamicznie) -->
+          <div class="circuit-stations-grid" id="circuits-container">
+            <div id="rotameters-row"></div>
+            <div id="actuators-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. DOLNA SEKCJA KAFELKÓW PĘTLI -->
+      <div class="grid-header-row">
+        <div class="grid-title">Sekcje pętli grzewczych (kliknij kafelek, aby edytować przepływ)</div>
+        <div class="grid-sub-hint">Krok regulacji rotametru: ±0.1 l/min</div>
+      </div>
+
+      <div class="loops-grid" id="loops-grid">
+        <!-- Renderowane przez JS -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ROOM-FIRST KONFIGURACJA POMIESZCZEŃ I PĘTLI (Odwzorowanie 1:1)   -->
+  <!-- ========================================================================= -->
+  <div id="rooms-modal" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-slate-900/60 backdrop-blur-sm" style="display: none;">
+    <!-- Główny Kontener Modala -->
+
+    <div class="bg-[#fcf8f8] w-full max-w-2xl rounded-3xl shadow-2xl border border-stone-200/80 flex flex-col max-h-[92vh] overflow-hidden">
+
+        
+
+        <!-- Nagłówek Modala -->
+
+        <div class="px-6 py-5 bg-white border-b border-stone-200/70 flex items-center justify-between shrink-0">
+
+            <div class="flex items-center gap-3">
+
+                <button class="w-9 h-9 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-600 transition-colors" title="Zamknij" onclick="closeRoomsModal()">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+
+                    </svg>
+
+                </button>
+
+                <div>
+
+                    <h1 class="text-lg sm:text-xl font-bold text-stone-800 tracking-tight">Konfiguracja pętli – Rozdzielacz Parter</h1>
+
+                    <p class="text-xs text-stone-500">Grupuj pętle według pomieszczeń, aby szybciej skonfigurować przepływy</p>
+
+                </div>
+
+            </div>
+
+            <button onclick="toggleHelp()" class="w-9 h-9 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-500 transition-colors" title="Pomoc">
+
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+
+                </svg>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Pasek stanu rozdzielacza (Sticky podsumowanie) -->
+
+        <div class="bg-indigo-950 text-white px-6 py-3.5 shrink-0 flex flex-wrap items-center justify-between gap-4 shadow-inner">
+
+            <div class="flex items-center gap-6">
+
+                <div>
+
+                    <span class="text-[11px] uppercase tracking-wider text-indigo-300 block font-medium">Zajęte sekcje (pętle)</span>
+
+                    <div class="flex items-baseline gap-1.5 mt-0.5">
+
+                        <span id="total-loops-count" class="text-xl font-bold">0</span>
+
+                        <span class="text-sm text-indigo-300">/ 10 dostępnych</span>
+
+                    </div>
+
+                </div>
+
+                <div class="h-8 w-px bg-indigo-800/80 hidden sm:block"></div>
+
+                <div>
+
+                    <span class="text-[11px] uppercase tracking-wider text-indigo-300 block font-medium">Całkowita powierzchnia</span>
+
+                    <div class="flex items-baseline gap-1 mt-0.5">
+
+                        <span id="total-area-count" class="text-xl font-bold">0</span>
+
+                        <span class="text-sm text-indigo-300">m²</span>
+
+                    </div>
+
+                </div>
+
+                <div class="h-8 w-px bg-indigo-800/80 hidden sm:block"></div>
+
+                <div>
+
+                    <span class="text-[11px] uppercase tracking-wider text-indigo-300 block font-medium">Suma przepływów</span>
+
+                    <div class="flex items-baseline gap-1 mt-0.5">
+
+                        <span id="total-flow-count" class="text-xl font-bold text-emerald-400">0.0</span>
+
+                        <span class="text-sm text-indigo-300">l/min</span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Wizualny pasek zapełnienia rozdzielacza -->
+
+            <div class="w-full sm:w-auto flex flex-col items-end">
+
+                <div id="manifold-slots" class="flex gap-1">
+
+                    <!-- Generowane przez JS kropki reprezentujące 10 sekcji na belce -->
+
+                </div>
+
+                <span id="slots-status-text" class="text-[11px] text-indigo-200 mt-1">Rozdzielacz: 10-obwodowy</span>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Komunikat pomocy (ukryty domyślnie) -->
+
+        <div id="help-banner" class="hidden bg-amber-50 border-b border-amber-200 px-6 py-3 text-xs text-amber-900 flex justify-between items-center">
+
+            <div>
+
+                <strong>Wskazówka:</strong> Dodaj pomieszczenie (np. <em>Salon</em>), wpisz jego łączny metraż i wybierz wylewkę. Następnie kliknij <strong>+</strong> przy liczbie pętli, jeśli w tym pomieszczeniu ułożono więcej niż jeden obwód grzewczy. Numeracja pętli na belce rozdzielacza zaktualizuje się automatycznie!
+
+            </div>
+
+            <button onclick="toggleHelp()" class="text-amber-700 font-bold ml-4">OK</button>
+
+        </div>
+
+
+
+        <!-- Główna lista pomieszczeń (Scrollowalna) -->
+
+        <div class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1" id="rooms-container">
+
+            <!-- Karty pomieszczeń są renderowane tutaj przez JS -->
+
+        </div>
+
+
+
+        <!-- Przycisk dodawania nowego pomieszczenia + Szybkie tagi -->
+
+        <div class="px-6 py-3 bg-stone-100/80 border-t border-stone-200/80 shrink-0">
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+
+                <button onclick="addRoom()" id="add-room-btn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border-2 border-dashed border-indigo-300 hover:border-indigo-600 hover:bg-indigo-50/50 text-indigo-900 font-semibold text-sm transition-all shadow-2xs active:scale-[0.99]">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+
+                    </svg>
+
+                    Dodaj pomieszczenie
+
+                </button>
+
+
+
+                <div class="flex items-center gap-1.5 flex-wrap">
+
+                    <span class="text-xs text-stone-400 mr-1">Szybkie dodanie:</span>
+
+                    <button onclick="addQuickRoom('WC', 4, 'Anhydrytowa', [1.0])" class="text-xs bg-white hover:bg-stone-200 text-stone-700 border border-stone-200 px-2.5 py-1.5 rounded-lg transition-colors font-medium">+ WC</button>
+
+                    <button onclick="addQuickRoom('Łazienka', 9, 'Domyślna rozdzielacza', [1.5])" class="text-xs bg-white hover:bg-stone-200 text-stone-700 border border-stone-200 px-2.5 py-1.5 rounded-lg transition-colors font-medium">+ Łazienka</button>
+
+                    <button onclick="addQuickRoom('Sypialnia', 14, 'Domyślna rozdzielacza', [1.5])" class="text-xs bg-white hover:bg-stone-200 text-stone-700 border border-stone-200 px-2.5 py-1.5 rounded-lg transition-colors font-medium">+ Sypialnia</button>
+
+                    <button onclick="addQuickRoom('Korytarz', 8, 'Domyślna rozdzielacza', [1.2])" class="text-xs bg-white hover:bg-stone-200 text-stone-700 border border-stone-200 px-2.5 py-1.5 rounded-lg transition-colors font-medium">+ Korytarz</button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Stopka z akcjami -->
+
+        <div class="px-6 py-4 bg-white border-t border-stone-200 flex items-center justify-between shrink-0">
+
+            <div id="validation-msg" class="text-xs text-stone-500">
+
+                Wszystkie zmiany są przeliczane na bieżąco.
+
+            </div>
+
+            <div class="flex items-center gap-3">
+
+                <button onclick="resetToDefault()" class="px-4 py-2.5 rounded-full text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors">
+
+                    Przywróć domyślne
+
+                </button>
+
+                <button onclick="saveConfiguration()" class="px-6 py-2.5 rounded-full text-sm font-semibold bg-[#3f4773] hover:bg-[#31385e] text-white shadow-md hover:shadow-lg transition-all active:scale-95">
+
+                    Zatwierdź
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Powiadomienie -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-stone-900 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-medium transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 z-50">
+    <span id="toast-icon" class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">✓</span>
+    <span id="toast-text">Zapisano konfigurację!</span>
+  </div>
+
+  <!-- Szybki modal edycji pojedynczej pętli -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal-box">
+      <div class="modal-head" id="modal-heading">Edytuj Pętlę</div>
+      <div class="form-group">
+        <label>Pomieszczenie</label>
+        <input type="text" id="m-room" />
+      </div>
+      <div class="form-group">
+        <label>Powierzchnia (m²)</label>
+        <input type="number" step="0.5" id="m-area" />
+      </div>
+      <div class="form-group">
+        <label>Nastawa rotametru (l/min)</label>
+        <input type="number" step="0.1" min="0.1" max="6.0" id="m-flow" />
+      </div>
+      <div class="form-group">
+        <label>Posadzka</label>
+        <select id="m-screed">
+          <option value="default">Domyślna (Anhydrytowa)</option>
+          <option value="cement">Wylewka cementowa tradycyjna</option>
+          <option value="anhydrite">Wylewka anhydrytowa płynna</option>
+          <option value="dry_screed">Sucha zabudowa (płyty)</option>
+        </select>
+      </div>
+      <div class="modal-foot">
+        <button class="modal-btn cancel" onclick="closeModal()">Anuluj</button>
+        <button class="modal-btn save" onclick="saveModal()">Zapisz</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Maksymalna pojemność rozdzielacza
+    const MAX_MANIFOLD_LOOPS = 10;
+
+    // Opcje wylewki
+    const SCREED_TYPES = [
+      "Domyślna rozdzielacza",
+      "Cementowa (tradycyjna)",
+      "Anhydrytowa (samopoziomująca)",
+      "Suchy jastrych (płyty)"
+    ];
+
+    // Stan pomieszczeń zdefiniowany wg hierarchii Rozdzielacz -> Pomieszczenia -> Pętle
+    let rooms = [
+      {
+        id: 'room-1',
+        name: 'Salon',
+        area: 30,
+        screed: 'Domyślna rozdzielacza',
+        loops: [
+          { flow: 1.5 },
+          { flow: 1.5 }
+        ]
+      },
+      {
+        id: 'room-2',
+        name: 'Kuchnia',
+        area: 15,
+        screed: 'Domyślna rozdzielacza',
+        loops: [
+          { flow: 1.5 }
+        ]
+      },
+      {
+        id: 'room-3',
+        name: 'Łazienka',
+        area: 8,
+        screed: 'Anhydrytowa (samopoziomująca)',
+        loops: [
+          { flow: 1.8 }
+        ]
+      },
+      {
+        id: 'room-4',
+        name: 'WC',
+        area: 3.5,
+        screed: 'Domyślna rozdzielacza',
+        loops: [
+          { flow: 1.0 }
+        ]
+      }
+    ];
+
+    let loopsData = [];
+    let selectedIndex = 0;
+
+    // Obliczenie łącznej liczby pętli
+    function getTotalLoops() {
+      return rooms.reduce((acc, room) => acc + room.loops.length, 0);
+    }
+
+    // Przeliczenie struktury Pomieszczenia -> Pętle na listę sekcji dla rozdzielacza
+    function syncManifoldFromRooms() {
+      loopsData = [];
+      let globalSec = 1;
+
+      rooms.forEach((room) => {
+        const areaPerLoop = room.loops.length > 0 ? ((parseFloat(room.area) || 0) / room.loops.length).toFixed(1) : 0;
+
+        room.loops.forEach((loop, lIdx) => {
+          const flow = parseFloat(loop.flow) || 1.5;
+          const pipeLen = Math.round(areaPerLoop * 6.5 + 4.0);
+          const dp = +(flow * 1.8 + pipeLen * 0.08).toFixed(1);
+          let status = "Optymalny";
+          if (flow > 2.2) status = "Przewymiarowany";
+          else if (flow < 1.0) status = "Zbyt mały";
+
+          const subTitle = room.loops.length > 1 ? `${room.name} - Obwód ${lIdx + 1}` : room.name;
+
+          loopsData.push({
+            section: globalSec++,
+            room: subTitle,
+            roomName: room.name,
+            area: areaPerLoop,
+            lmin: flow,
+            pipe_len: `${pipeLen} m`,
+            dp: dp,
+            screed_txt: room.screed === "Domyślna rozdzielacza" ? "Domyślna (Anh.)" : room.screed,
+            status: status,
+          });
+        });
+      });
+
+      if (selectedIndex >= loopsData.length) selectedIndex = 0;
+      render();
+    }
+
+    // Renderowanie fotorealistycznego rozdzielacza
+    function render() {
+      const circuitsCount = loopsData.length;
+      document.getElementById("manifold-circuits-count").textContent = `${circuitsCount} obiegów`;
+
+      // Rozmieszczenie sekcji na belkach
+      const rotRow = document.getElementById("rotameters-row");
+      const actRow = document.getElementById("actuators-row");
+      rotRow.innerHTML = "";
+      actRow.innerHTML = "";
+
+      const stepPercent = 100 / Math.max(1, circuitsCount);
+
+      loopsData.forEach((l, i) => {
+        const fill = Math.min(Math.max((l.lmin / 4.0) * 100, 15), 90);
+        const isActive = i === selectedIndex;
+        const leftPercent = (i + 0.5) * stepPercent;
+
+        // Rotametr
+        const rot = document.createElement("div");
+        rot.className = `rot-station ${isActive ? 'active' : ''}`;
+        rot.style.left = `calc(${leftPercent}% - 16px)`;
+        rot.onclick = () => selectLoop(i);
+        rot.innerHTML = `
+          <div class="rot-top-badge ${isActive ? 'gold' : ''}">${l.lmin.toFixed(1)} l/min</div>
+          <div class="rot-cylinder">
+            <div class="rot-water" style="height:${fill}%;"></div>
+            <div class="rot-disc" style="bottom:${fill}%;"></div>
+          </div>
+          <div class="rot-collar"></div>
+          <div class="transit-pipe"></div>
+        `;
+        rotRow.appendChild(rot);
+
+        // Siłownik
+        const act = document.createElement("div");
+        act.className = `act-station ${isActive ? 'active' : ''}`;
+        act.style.left = `calc(${leftPercent}% - 18px)`;
+        act.onclick = () => selectLoop(i);
+        act.innerHTML = `
+          <div class="act-shell">
+            <span class="act-led-pill">ON</span>
+            <span class="act-sub-txt">230V NC</span>
+          </div>
+          <div class="bottom-feed-pipes">
+            <div class="brass-nipple"></div>
+            <div class="pipe-drop"></div>
+          </div>
+          <div class="circuit-title">#${l.section} ${l.roomName || l.room}</div>
+        `;
+        actRow.appendChild(act);
+      });
+
+      // Grid kafelków pętli
+      const grid = document.getElementById("loops-grid");
+      grid.innerHTML = loopsData.map((l, i) => {
+        const isActive = i === selectedIndex;
+        const statusClass = l.status === "Optymalny" ? "pill-opt" : (l.status === "Przewymiarowany" ? "pill-warn" : "pill-crit");
+        const flowLh = Math.round(l.lmin * 60);
+
+        return `
+          <div class="loop-box ${isActive ? 'active' : ''}" onclick="handleCardClick(${i})">
+            ${isActive ? '<div class="active-edit-tag">AKTYWNA EDYCJA</div>' : ''}
+            <div class="loop-top-meta">
+              <span class="loop-num-area">PĘTLA #${l.section} • ${l.area} M²</span>
+              <span class="loop-status-pill ${statusClass}">${l.status}</span>
+            </div>
+            <div class="loop-room-title" title="${l.room}">${l.room}</div>
+            <div class="loop-flow-row">
+              <span class="flow-val-lmin">${l.lmin.toFixed(1)} <small style="font-size:0.65em">l/min</small></span>
+              <span class="flow-val-lh">${flowLh} l/h</span>
+            </div>
+            <div class="loop-details-grid">
+              <div class="detail-item">
+                <span>Długość rury:</span>
+                <span class="detail-val">${l.pipe_len}</span>
+              </div>
+              <div class="detail-item">
+                <span>Spadek Δp:</span>
+                <span class="detail-val">${l.dp} kPa</span>
+              </div>
+              <div class="detail-item">
+                <span>Posadzka:</span>
+                <span class="detail-val">${l.screed_txt}</span>
+              </div>
+            </div>
+            <div class="stepper-actions" onclick="event.stopPropagation()">
+              <button class="step-btn" onclick="stepFlow(${i}, -0.1)" title="Zmniejsz przepływ o 0.1 l/min">[-]</button>
+              <span class="step-hint-badge">0.1</span>
+              <button class="step-btn" onclick="stepFlow(${i}, 0.1)" title="Zwiększ przepływ o 0.1 l/min">[+]</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Podsumowanie
+      const totalLmin = loopsData.reduce((acc, l) => acc + l.lmin, 0);
+      const totalLh = Math.round(totalLmin * 60);
+      const maxDp = Math.max(...loopsData.map(l => l.dp), 0).toFixed(1);
+      const powerKw = ((totalLh / 3600.0) * 4.186 * 6.0).toFixed(2);
+
+      document.getElementById("stat-sum-flow").textContent = `${totalLmin.toFixed(1)} l/min (${totalLh} l/h)`;
+      document.getElementById("stat-crit-dp").textContent = `${maxDp} kPa (${Math.round(maxDp * 10)} mbar)`;
+      document.getElementById("stat-delta-t").textContent = `6.0 °C (Moc: ~${powerKw} kW)`;
+    }
+
+    function selectLoop(idx) {
+      selectedIndex = idx;
+      render();
+    }
+
+    function handleCardClick(idx) {
+      if (selectedIndex === idx) {
+        openModal(idx);
+      } else {
+        selectLoop(idx);
+      }
+    }
+
+    function stepFlow(idx, delta) {
+      loopsData[idx].lmin = Math.max(0.1, Math.min(6.0, parseFloat((loopsData[idx].lmin + delta).toFixed(1))));
+      selectLoop(idx);
+    }
+
+    // =========================================================================
+    // LOGIKA MODALA KONFIGURATORA POMIESZCZEŃ I PĘTLI
+    // =========================================================================
+
+    function openRoomsModal() {
+      renderRoomsModal();
+      document.getElementById("rooms-modal").style.display = "flex";
+    }
+
+    function closeRoomsModal() {
+      document.getElementById("rooms-modal").style.display = "none";
+    }
+
+    function renderRoomsModal() {
+      const container = document.getElementById('rooms-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      let globalLoopIndex = 1;
+      let totalArea = 0;
+      let totalFlow = 0;
+
+      rooms.forEach((room, roomIdx) => {
+        totalArea += parseFloat(room.area) || 0;
+        const areaPerLoop = room.loops.length > 0 ? ((parseFloat(room.area) || 0) / room.loops.length).toFixed(1) : 0;
+
+        let loopsHtml = '';
+        room.loops.forEach((loop, loopIdx) => {
+          const currentLoopNumber = globalLoopIndex++;
+          totalFlow += parseFloat(loop.flow) || 0;
+
+          loopsHtml += `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-stone-50/90 hover:bg-stone-100/80 px-3.5 py-2.5 rounded-xl border border-stone-200/70 transition-colors">
+              <div class="flex items-center gap-3">
+                <span class="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-900 font-bold text-xs tracking-wide border border-indigo-200/60 shadow-2xs">
+                  Pętla #${currentLoopNumber}
+                </span>
+                <span class="text-xs text-stone-500">
+                  ${room.loops.length > 1 ? `Obwód ${loopIdx + 1} w: <strong class="text-stone-700">${room.name || 'Bez nazwy'}</strong> (~${areaPerLoop} m²)` : `Obwód główny (~${areaPerLoop} m²)`}
+                </span>
+              </div>
+              <div class="flex items-center justify-between sm:justify-end gap-3">
+                <label class="text-xs font-medium text-stone-600">Przepływ rotametru:</label>
+                <div class="flex items-center bg-white border border-stone-300 rounded-xl p-0.5 shadow-2xs">
+                  <button type="button" onclick="adjustFlow(${roomIdx}, ${loopIdx}, -0.1)" 
+                    class="w-7 h-7 rounded-lg hover:bg-stone-100 active:bg-stone-200 flex items-center justify-center text-stone-600 font-bold text-sm transition-colors" title="-0.1 l/min">
+                    −
+                  </button>
+                  <div class="flex items-center px-2">
+                    <input type="number" step="0.1" min="0" max="6" 
+                      value="${loop.flow}" 
+                      onchange="updateFlowInput(${roomIdx}, ${loopIdx}, this.value)"
+                      class="w-10 text-center font-bold text-sm text-stone-800 focus:outline-none bg-transparent" />
+                    <span class="text-[11px] text-stone-400 font-medium">l/min</span>
+                  </div>
+                  <button type="button" onclick="adjustFlow(${roomIdx}, ${loopIdx}, 0.1)" 
+                    class="w-7 h-7 rounded-lg hover:bg-stone-100 active:bg-stone-200 flex items-center justify-center text-stone-600 font-bold text-sm transition-colors" title="+0.1 l/min">
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        const screedOptions = SCREED_TYPES.map(type => 
+          `<option value="${type}" ${room.screed === type ? 'selected' : ''}>${type}</option>`
+        ).join('');
+
+        const roomCard = document.createElement('div');
+        roomCard.className = "bg-white rounded-2xl border border-stone-200/90 shadow-xs overflow-hidden transition-all hover:border-stone-300";
+        roomCard.innerHTML = `
+          <div class="p-4 border-b border-stone-100">
+            <div class="flex items-start justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-stone-100 text-stone-600 text-xs font-bold flex items-center justify-center border border-stone-200">
+                  ${roomIdx + 1}
+                </span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-stone-400">Pomieszczenie</span>
+              </div>
+              <button onclick="removeRoom(${roomIdx})" class="text-stone-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-colors" title="Usuń pomieszczenie">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <div class="sm:col-span-5">
+                <label class="block text-[11px] font-medium text-stone-500 mb-1">Nazwa pomieszczenia*</label>
+                <input type="text" value="${room.name}" placeholder="np. WC, Salon..." 
+                  oninput="updateRoomField(${roomIdx}, 'name', this.value)"
+                  class="w-full px-3 py-2 bg-stone-50/70 border border-stone-300 rounded-xl text-sm font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 focus:bg-white transition-all" />
+              </div>
+              <div class="sm:col-span-3">
+                <label class="block text-[11px] font-medium text-stone-500 mb-1">Powierzchnia*</label>
+                <div class="relative">
+                  <input type="number" step="0.5" min="1" value="${room.area}" 
+                    oninput="updateRoomField(${roomIdx}, 'area', this.value)"
+                    class="w-full pl-3 pr-9 py-2 bg-stone-50/70 border border-stone-300 rounded-xl text-sm font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 focus:bg-white transition-all" />
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-stone-400 pointer-events-none">m²</span>
+                </div>
+              </div>
+              <div class="sm:col-span-4">
+                <label class="block text-[11px] font-medium text-stone-500 mb-1">Rodzaj wylewki (posadzka)</label>
+                <select onchange="updateRoomField(${roomIdx}, 'screed', this.value)"
+                  class="w-full px-3 py-2 bg-stone-50/70 border border-stone-300 rounded-xl text-sm font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 focus:bg-white transition-all">
+                  ${screedOptions}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 bg-white">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span class="text-xs font-bold text-stone-700">Liczba pętli w tym pomieszczeniu</span>
+              </div>
+              <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200">
+                <button type="button" onclick="changeLoopCount(${roomIdx}, -1)" 
+                  ${room.loops.length <= 1 ? 'disabled' : ''}
+                  class="w-7 h-7 rounded-lg bg-white shadow-2xs flex items-center justify-center text-stone-700 font-bold hover:bg-stone-50 disabled:opacity-40 disabled:pointer-events-none transition-all">
+                  −
+                </button>
+                <span class="w-8 text-center font-bold text-sm text-indigo-950">${room.loops.length}</span>
+                <button type="button" onclick="changeLoopCount(${roomIdx}, 1)" 
+                  class="w-7 h-7 rounded-lg bg-indigo-600 text-white shadow-2xs flex items-center justify-center font-bold hover:bg-indigo-700 transition-all">
+                  +
+                </button>
+              </div>
+            </div>
+            <div class="space-y-2">
+              ${loopsHtml}
+            </div>
+          </div>
+        `;
+
+        container.appendChild(roomCard);
+      });
+
+      const totalLoops = globalLoopIndex - 1;
+      document.getElementById('total-loops-count').textContent = totalLoops;
+      document.getElementById('total-area-count').textContent = totalArea.toFixed(1).replace('.0', '');
+      document.getElementById('total-flow-count').textContent = totalFlow.toFixed(1);
+
+      renderManifoldSlots(totalLoops);
+    }
+
+    function renderManifoldSlots(activeLoops) {
+      const slotsContainer = document.getElementById('manifold-slots');
+      const statusText = document.getElementById('slots-status-text');
+      if (!slotsContainer || !statusText) return;
+      slotsContainer.innerHTML = '';
+
+      for (let i = 1; i <= MAX_MANIFOLD_LOOPS; i++) {
+        const isOccupied = i <= activeLoops;
+        const slot = document.createElement('div');
+        slot.className = `w-5 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${
+          isOccupied 
+            ? 'bg-emerald-400 text-indigo-950 shadow-xs scale-105' 
+            : 'bg-indigo-900/70 text-indigo-400 border border-indigo-800'
+        }`;
+        slot.textContent = i;
+        slot.title = isOccupied ? `Sekcja ${i}: Zajęta` : `Sekcja ${i}: Wolna`;
+        slotsContainer.appendChild(slot);
+      }
+
+      if (activeLoops === MAX_MANIFOLD_LOOPS) {
+        statusText.textContent = "Wszystkie 10 sekcji rozdzielacza obsadzone";
+        statusText.className = "text-[11px] text-emerald-300 mt-1 font-medium";
+      } else if (activeLoops > MAX_MANIFOLD_LOOPS) {
+        statusText.textContent = `Przekroczono liczbę sekcji o ${activeLoops - MAX_MANIFOLD_LOOPS}!`;
+        statusText.className = "text-[11px] text-rose-400 mt-1 font-bold";
+      } else {
+        statusText.textContent = `Wolne sekcje na belce: ${MAX_MANIFOLD_LOOPS - activeLoops}`;
+        statusText.className = "text-[11px] text-indigo-200 mt-1";
+      }
+    }
+
+    function updateRoomField(roomIdx, field, value) {
+      rooms[roomIdx][field] = value;
+      renderRoomsModal();
+    }
+
+    function changeLoopCount(roomIdx, delta) {
+      const currentLoops = getTotalLoops();
+      if (delta > 0 && currentLoops >= MAX_MANIFOLD_LOOPS) {
+        showToast(`Rozdzielacz ma maksymalnie ${MAX_MANIFOLD_LOOPS} sekcji!`, true);
+        return;
+      }
+
+      const room = rooms[roomIdx];
+      if (delta > 0) {
+        const lastFlow = room.loops.length > 0 ? room.loops[room.loops.length - 1].flow : 1.5;
+        room.loops.push({ flow: lastFlow });
+      } else if (delta < 0 && room.loops.length > 1) {
+        room.loops.pop();
+      }
+      renderRoomsModal();
+    }
+
+    function adjustFlow(roomIdx, loopIdx, delta) {
+      let current = parseFloat(rooms[roomIdx].loops[loopIdx].flow) || 0;
+      let next = Math.max(0, Math.min(6, +(current + delta).toFixed(1)));
+      rooms[roomIdx].loops[loopIdx].flow = next;
+      renderRoomsModal();
+    }
+
+    function updateFlowInput(roomIdx, loopIdx, val) {
+      let parsed = parseFloat(String(val).replace(',', '.'));
+      if (isNaN(parsed) || parsed < 0) parsed = 0;
+      if (parsed > 6) parsed = 6;
+      rooms[roomIdx].loops[loopIdx].flow = +parsed.toFixed(1);
+      renderRoomsModal();
+    }
+
+    function addRoom() {
+      if (getTotalLoops() >= MAX_MANIFOLD_LOOPS) {
+        showToast(`Wszystkie ${MAX_MANIFOLD_LOOPS} pętli na tym rozdzielaczu jest już zajęte.`, true);
+        return;
+      }
+      rooms.push({
+        id: 'room-' + Date.now(),
+        name: 'Nowe pomieszczenie',
+        area: 12,
+        screed: 'Domyślna rozdzielacza',
+        loops: [{ flow: 1.5 }]
+      });
+      renderRoomsModal();
+      const container = document.getElementById('rooms-container');
+      setTimeout(() => {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      }, 50);
+    }
+
+    function addQuickRoom(name, area, screed, flows) {
+      if (getTotalLoops() + flows.length > MAX_MANIFOLD_LOOPS) {
+        showToast(`Brak wolnych sekcji na rozdzielaczu (max ${MAX_MANIFOLD_LOOPS}).`, true);
+        return;
+      }
+      rooms.push({
+        id: 'room-' + Date.now(),
+        name: name,
+        area: area,
+        screed: screed,
+        loops: flows.map(f => ({ flow: f }))
+      });
+      renderRoomsModal();
+      const container = document.getElementById('rooms-container');
+      setTimeout(() => {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      }, 50);
+    }
+
+    function removeRoom(roomIdx) {
+      if (rooms.length <= 1) {
+        showToast("Musi pozostać przynajmniej jedno pomieszczenie.", true);
+        return;
+      }
+      rooms.splice(roomIdx, 1);
+      renderRoomsModal();
+    }
+
+    function toggleHelp() {
+      const banner = document.getElementById('help-banner');
+      banner.classList.toggle('hidden');
+    }
+
+    function resetToDefault() {
+      rooms = [
+        {
+          id: 'room-1',
+          name: 'Salon',
+          area: 30,
+          screed: 'Domyślna rozdzielacza',
+          loops: [{ flow: 1.5 }, { flow: 1.5 }]
+        },
+        {
+          id: 'room-2',
+          name: 'Kuchnia',
+          area: 15,
+          screed: 'Domyślna rozdzielacza',
+          loops: [{ flow: 1.5 }]
+        },
+        {
+          id: 'room-3',
+          name: 'Łazienka',
+          area: 8,
+          screed: 'Anhydrytowa (samopoziomująca)',
+          loops: [{ flow: 1.8 }]
+        },
+        {
+          id: 'room-4',
+          name: 'WC',
+          area: 3.5,
+          screed: 'Domyślna rozdzielacza',
+          loops: [{ flow: 1.0 }]
+        }
+      ];
+      renderRoomsModal();
+      showToast("Przywrócono układ początkowy.");
+    }
+
+    function saveConfiguration() {
+      const totalLoops = getTotalLoops();
+      syncManifoldFromRooms();
+      closeRoomsModal();
+      showToast(`Zapisano pomyślnie! Skonfigurowano ${rooms.length} pomieszczeń (${totalLoops} pętli).`);
+    }
+
+    let toastTimeout;
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      const text = document.getElementById('toast-text');
+      const icon = document.getElementById('toast-icon');
+
+      text.textContent = message;
+      if (isError) {
+        icon.textContent = '!';
+        icon.className = 'w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold';
+      } else {
+        icon.textContent = '✓';
+        icon.className = 'w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold';
+      }
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3200);
+    }
+
+    // Szybki modal edycji pojedynczej pętli
+    function openModal(idx) {
+      selectedIndex = idx;
+      const l = loopsData[idx];
+      document.getElementById("modal-heading").textContent = `Edytuj Pętlę #${l.section} (${l.room})`;
+      document.getElementById("m-room").value = l.room;
+      document.getElementById("m-area").value = l.area;
+      document.getElementById("m-flow").value = l.lmin;
+      document.getElementById("edit-modal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("edit-modal").style.display = "none";
+    }
+
+    function saveModal() {
+      const l = loopsData[selectedIndex];
+      l.room = document.getElementById("m-room").value.trim() || l.room;
+      l.area = parseFloat(document.getElementById("m-area").value) || l.area;
+      l.lmin = parseFloat(document.getElementById("m-flow").value) || l.lmin;
+      const scr = document.getElementById("m-screed").value;
+      l.screed_txt = scr === "cement" ? "Cementowa (Nadpis.)" : "Domyślna (Anh.)";
+      closeModal();
+      render();
+    }
+
+    // Inicjalizacja przy załadowaniu strony
+    window.onload = () => {
+      syncManifoldFromRooms();
+    };
+  </script>
+</body>
+</html>
