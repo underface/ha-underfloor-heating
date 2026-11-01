@@ -1,167 +1,195 @@
-# Home Assistant: Underfloor Heating Manager 🌊🔥
+# Home Assistant: Zarządzanie Ogrzewaniem Podłogowym (Underfloor Heating Manager) 🌊🔥
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
-[![GitHub release](https://img.shields.io/badge/release-v1.1.0-blue.svg)](https://github.com/underface/ha-underfloor-heating/releases)
+[![GitHub release](https://img.shields.io/badge/release-v1.4.0-blue.svg)](https://github.com/underface/ha-underfloor-heating/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-> **Languages / Języki / Sprachen / Idiomas:**
-> [English](#-english) | [Polski](#-polski) | [Deutsch](#-deutsch) | [Español](#-español)
+> **Języki / Languages / Sprachen / Idiomas:**  
+> [🇵🇱 Polski](#-polski) | [🇬🇧 English](#-english) | [🇩🇪 Deutsch](#-deutsch) | [🇪🇸 Español](#-español)
 
-<p align="center">
-  <img src="images/manifold_card.svg" alt="Underfloor Heating Manifold Lovelace Card Preview" width="100%">
-</p>
+---
+
+## 🇵🇱 Polski
+
+### Opis integracji
+**Zarządzanie Ogrzewaniem Podłogowym** to zaawansowana integracja dla Home Assistant zaprojektowana z myślą o instalacjach podłogowych z **manualnymi rotametrami** i tradycyjnymi rozdzielaczami. 
+
+Integracja nie wymaga drogich przepływomierzy IoT. Użytkownik wprowadza jedynie nastawę ze szklanej rurki rotametru ($l/min$ lub $l/h$), a wbudowany silnik inżynieryjny w czasie rzeczywistym samoczynnie oblicza:
+- Dokładną długość pętli ($m$) na podstawie metrażu i rozstawu rur,
+- Rzeczywisty liniowy i miejscowy spadek ciśnienia $\Delta p$ ($kPa$) wg wzoru Darcy-Weisbacha i Colebrooka-White'a,
+- Prędkość przepływu cieczy ($m/s$) z ostrzeżeniem o ryzyku zapowietrzenia (< 0.15 m/s) lub szumach (> 0.8 m/s),
+- Sumaryczny przepływ wody dla całego pokoju ($l/min$, $l/h$, $m^3/h$) oraz oddawaną moc cieplną ($kW$),
+- Właściwości termiczne wylewki (cementowa, anhydrytowa, sucha) oraz bezwładność cieplną ($h$).
+
+---
+
+### Ścisła 3-poziomowa Hierarchia Urządzeń (Device Registry)
+
+Integracja buduje w Home Assistant pełną, relacyjną hierarchię urządzeń opartą o `via_device_id`:
+
+```mermaid
+graph TD
+    M["🎛️ ROZDZIELACZ (Poziom 1)<br/>np. Rozdzielacz Parter (Kotłownia)<br/>Encje: Suma l/min, Pętla krytyczna kPa, Zrównoważenie"]
+    
+    M --> Z1["🏠 POMIESZCZENIE: Salon (Poziom 2)<br/>Obszar: Salon (Metraż: 30 m²)<br/>Encje: Suma wody l/min, m³/h, Moc kW, Wylewka"]
+    M --> Z2["🏠 POMIESZCZENIE: Kuchnia (Poziom 2)<br/>Obszar: Kuchnia (Metraż: 15 m²)<br/>Encje: Suma wody l/min, m³/h, Moc kW, Wylewka"]
+    M --> Z3["🏠 POMIESZCZENIE: Łazienka (Poziom 2)<br/>Obszar: Łazienka (Metraż: 8 m²)<br/>Encje: Suma wody l/min, m³/h, Moc kW, Wylewka"]
+
+    Z1 --> L1["🔄 Pętla 1: Salon 1 (Poziom 3)<br/>Obszar: Salon (15 m²)<br/>Encje: Rotametr l/min & l/h, Długość m, Δp kPa, m/s"]
+    Z1 --> L2["🔄 Pętla 2: Salon 2 (Poziom 3)<br/>Obszar: Salon (15 m²)<br/>Encje: Rotametr l/min & l/h, Długość m, Δp kPa, m/s"]
+    Z2 --> L3["🔄 Pętla 3: Kuchnia (Poziom 3)<br/>Obszar: Kuchnia (15 m²)<br/>Encje: Rotametr l/min & l/h, Długość m, Δp kPa, m/s"]
+    Z3 --> L4["🔄 Pętla 4: Łazienka (Poziom 3)<br/>Obszar: Łazienka (8 m²)<br/>Encje: Rotametr l/min & l/h, Długość m, Δp kPa, m/s"]
+
+    classDef manifold fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
+    classDef zone fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff;
+    classDef loop fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff;
+
+    class M manifold;
+    class Z1,Z2,Z3 zone;
+    class L1,L2,L3,L4 loop;
+```
+
+---
+
+### Nowy Model Konfiguracji 100% Room-First (v1.4.0)
+
+W v1.4.0 całkowicie usunięto sztywne określanie liczby sekcji przy tworzeniu rozdzielacza. Konfiguracja rozpoczyna się od pomieszczeń:
+
+```mermaid
+flowchart LR
+    Krok1["1. Krok: Belka Rozdzielacza<br/>• Nazwa rozdzielacza<br/>• Lokalizacja (Kotłownia)<br/>• Domyślna wylewka"] 
+    --> Krok2["2. Krok: Dodawanie Pomieszczeń<br/>• Nazwa pokoju (np. Salon)<br/>• Całkowity metraż m² (np. 30 m²)<br/>• Liczba pętli: Stepper [-] N [+] (np. 2)<br/>• Wylewka i nastawa rotametru (l/min)"]
+    --> Krok3["3. Automatyczny Podział i Generacja<br/>• Salon: 2 pętle po 15 m²<br/>• Powiązanie via_device_id<br/>• Rejestracja w Home Assistant"]
+```
+
+---
+
+### Dedykowany Panel Boczny ("Podłogówka") w Menu Home Assistant
+
+Integracja automatycznie dodaje pozycję **"Podłogówka"** (ikona `mdi:heating-coil`) w lewym menu nawigacyjnym Home Assistant:
+- **Zero konfiguracji YAML**: Nie musisz tworzyć kart ani edytować plików konfiguracyjnych.
+- **Wbudowany formularz**: Górny pasek zapełnienia (10 gniazd belki, licznik zajętych pętli, łączna powierzchnia $m^2$, suma przepływów $l/min$).
+- **Karty pomieszczeń**: Zmiana metrażu, dodawanie/usuwanie pętli stepperem `[-]` `N` `[+]`, regulacja rotametrów `[-]` `1.5 l/min` `[+]`.
+- **Szybkie dodawanie**: Gotowe szablony pokoi: `+ WC` ($4\ m^2$), `+ Łazienka` ($9\ m^2$), `+ Sypialnia` ($14\ m^2$), `+ Korytarz` ($8\ m^2$).
+- **Żywy podgląd rozdzielacza**: Wizualizacja stalowych belek Inox AISI 304, pływaków rotametrów i siłowników elektrotermicznych NC.
+
+---
+
+### Wizualny Schemat Belki Rozdzielacza (RWD)
+
+```
+========================================================================================
+                      ROZDZIELACZ HYDRAULICZNY - PODŁOGÓWKA
+ Przepływ sumaryczny: 7.2 l/min (432 l/h) | Zasilanie/Powrót: 38°C / 32°C (ΔT=6.0°C) | Δp_max: 15.7 kPa
+========================================================================================
+
+ [ZASILANIE 38°C] ===[ BELKA GÓRNA INOX AISI 304 - ZASILAJĄCA (FLOW) ]===================
+                        |             |             |             |             |
+                       [1]           [2]           [3]           [4]           [5]
+                     Rotametr      Rotametr      Rotametr      Rotametr      Rotametr
+                    (1.8 l/m)     (1.5 l/m)     (1.5 l/m)     (1.4 l/m)     (1.0 l/m)
+                        |             |             |             |             |
+                        |             |             |             |             |
+ [POWRÓT 32°C]   ===[ BELKA DOLNA INOX AISI 304 - POWROTNA (RETURN) ]===================
+                        |             |             |             |             |
+                     Siłownik      Siłownik      Siłownik      Siłownik      Siłownik
+                     230V NC       230V NC       230V NC       230V NC       230V NC
+                        |             |             |             |             |
+                     Pętla #1      Pętla #2      Pętla #3      Pętla #4      Pętla #5
+                    Sypialnia      Pokój Dzieci  Pokój Dzieci   Łazienka      Pralnia
+                    (14.0 m²)     (10.0 m²)     (10.0 m²)     (8.0 m²)      (6.0 m²)
+========================================================================================
+```
+
+---
+
+### Instrukcja Instalacji
+
+#### Sposób 1: Przez HACS (Rekomendowany)
+1. Otwórz **HACS** w menu Home Assistant.
+2. Kliknij ikonę **trzech kropek** w prawym górnym rogu i wybierz **Niestandardowe repozytoria** (*Custom repositories*).
+3. Wklej URL repozytorium: `https://github.com/underface/ha-underfloor-heating`
+4. Wybierz kategorię: **Integracja** (*Integration*).
+5. Kliknij **Dodaj** (*Add*), odszukaj **Zarządzanie Ogrzewaniem Podłogowym** i kliknij **Pobierz** (*Download*).
+6. Zrestartuj Home Assistant.
+7. Przejdź do: **Ustawienia** $\rightarrow$ **Urządzenia i usługi** $\rightarrow$ **Dodaj integrację**, wpisz **Zarządzanie Ogrzewaniem Podłogowym** i skonfiguruj swoje pomieszczenia.
+
+#### Sposób 2: Instalacja ręczna
+1. Pobierz archiwum `ha-underfloor-heating.zip` z sekcji Releases.
+2. Rozpakuj zawartość do folderu `/config/custom_components/underfloor_heating/` na serwerze Home Assistant.
+3. Zrestartuj Home Assistant.
+4. Przejdź do **Ustawienia** $\rightarrow$ **Urządzenia i usługi** $\rightarrow$ **Dodaj integrację** i wybierz wtyczkę.
+
+---
+
+### Dostępne Usługi (Services)
+
+| Nazwa usługi | Opis | Główne parametry |
+| :--- | :--- | :--- |
+| `underfloor_heating.save_manifold_configuration` | Zapisuje całą konfigurację pomieszczeń i pętli z panelu/karty Lovelace | `manifold_id`, `rooms` (tablica obiektów) |
+| `underfloor_heating.set_rotameter_flow` | Zmienia nastawę rotametru dla wybranej pętli | `loop_id`, `rotameter_flow_lh` |
+| `underfloor_heating.update_zone` | Aktualizuje parametry termiczne pokoju (metraż, wylewka, grubość) | `zone_id`, `area_m2`, `screed_type`, `screed_thickness_mm` |
+| `underfloor_heating.update_loop` | Aktualizuje parametry hydrauliczne pojedynczej pętli | `loop_id`, `spacing_cm`, `approach_length_m`, `pipe_type` |
 
 ---
 
 ## 🇬🇧 English
 
 ### Overview
-**Underfloor Heating Manager** is a Home Assistant custom integration engineered for calculation, control, and hydraulic balancing of hydronic radiant floor heating systems.
+**Underfloor Heating Manager** is a specialized Home Assistant integration designed for hydronic underfloor heating manifolds equipped with **manual mechanical rotameters**.
 
-<p align="center">
-  <img src="images/ha_devices.png" alt="Home Assistant Devices and Zones Hierarchy" width="100%">
-</p>
+No expensive IoT smart valves required. You simply set or read your rotameter glass indicator value ($l/min$ or $l/h$), and the integration's physical engine calculates:
+- Exact PE pipe loop length ($m$) based on room area, loop count, and pipe spacing,
+- Realistic linear and localized pressure drop $\Delta p$ ($kPa$) using Darcy-Weisbach and Colebrook-White formulas,
+- Fluid velocity ($m/s$) with automated warnings for low velocity (< 0.15 m/s airlock risk) or excessive velocity (> 0.8 m/s noise risk),
+- Aggregate room flow rates ($l/min$, $l/h$, $m^3/h$) and actual thermal power output ($kW$),
+- Screed thermal storage and response time inertia (hours) for cement, anhydrite, and dry systems.
 
-### What's New in v1.1.0:
-- **Streamlined Setup (Manifold $\rightarrow$ Loops)**: Add a heating manifold (e.g. Ground Floor, 8 loops) and immediately configure loops by selecting one or multiple loops simultaneously.
-- **Batch Assignment**: Assign room name, floor area ($m^2$), rotameter flow rate in **$l/min$**, screed type (cement, anhydrite, dry system), and screed thickness ($mm$) in a single step.
-- **Interactive Manifold Visualization Card (RWD)**: Realistic hydraulic manifold representation featuring stainless steel supply bar with vertical rotameters and moving floats, return bar with actuators, inlet/outlet ball valves with thermometers, and direct $l/min$ stepper controls.
+### 3-Level Device Registry Hierarchy
+- **Level 1 (Manifold)**: Central manifold device (total volume flow, critical loop $\Delta p$, balance state).
+- **Level 2 (Rooms / Zones)**: Linked via `via_device_id` to Manifold. Contains aggregate flow, area ($m^2$), screed properties, and thermal inertia ($h$).
+- **Level 3 (Heating Loops)**: Linked via `via_device_id` to Room. Contains manual rotameter number entities ($l/min$ and $l/h$) and physical sensors (loop length, $\Delta p$, flow velocity, balance status).
 
-### Key Features
-1. **Manifold Management**: Configure heating manifolds, monitor aggregate volume flow ($l/min$ and $l/h$), and assess loop pressure drops.
-2. **Room & Screed Dynamics**: Define room areas ($m^2$), screed composition and thickness ($mm$). Computes floor thermal mass, resistance, and thermal inertia (hours).
-3. **Loop Length Auto-Estimation**: Automatically calculates PE pipe circuit lengths based on room area, number of loops, pipe spacing (e.g. 10, 15, 20 cm), and manifold transit distance.
-4. **Rotameters as Native HA Entities**: Direct reading and slider adjustments for flow rates ($l/min$ and $l/h$) through `number.*` entities, ready for dashboards and automations.
-5. **Hydraulic Diagnostics**: Calculates flow velocity ($m/s$) and pressure drops ($\Delta p$ in $kPa$) using Darcy-Weisbach equations. Detects throttled, oversized, or excessively long loops (> 100 m for 16x2 pipes).
-6. **Responsive Lovelace Card (RWD)**: Realistic manifold visualization matching physical manifolds with manifold switching tabs (Ground Floor / First Floor).
-
-### Installation via Home Assistant
-
-#### Option 1: HACS (Recommended)
-1. Open **HACS** in your Home Assistant interface.
-2. Click the top-right **three dots menu** and select **Custom repositories**.
-3. Paste your repository URL: `https://github.com/underface/ha-underfloor-heating`
-4. Select Category: **Integration**.
-5. Click **Add**, locate **Underfloor Heating Manager** in the list, and select **Download**.
-6. Restart Home Assistant.
-7. Navigate to **Settings** $\rightarrow$ **Devices & Services** $\rightarrow$ **Add Integration**, search for **Underfloor Heating**, and follow the wizard.
-
-#### Option 2: Manual Installation
-1. Download the `ha-underfloor-heating.zip` release archive.
-2. Copy the `custom_components/underfloor_heating` directory into your Home Assistant server's `/config/custom_components/` directory.
-3. Restart Home Assistant.
-4. Go to **Settings** $\rightarrow$ **Devices & Services** $\rightarrow$ **Add Integration** and select **Underfloor Heating**.
-
----
-
-## 🇵🇱 Polski
-
-### Opis wtyczki
-**Zarządzanie Ogrzewaniem Podłogowym** to zaawansowana integracja dla Home Assistant służąca do parametryzacji, estymacji, regulacji oraz hydraulicznej diagnostyki wodnego ogrzewania podłogowego.
-
-<p align="center">
-  <img src="images/ha_devices.png" alt="Widok urządzeń i stref rozdzielaczy w Home Assistant" width="100%">
-</p>
-
-### Nowości w wersji 1.1.0:
-- **Błyskawiczna konfiguracja (Rozdzielacz $\rightarrow$ Pętle)**: Dodajesz rozdzielacz (np. Parter, 8 pętli), a pętle są generowane natychmiast.
-- **Grupowe przypisywanie pętli**: Zaznaczasz 1 lub wiele pętli naraz i w jednym kroku określasz: pomieszczenie, łączny metraż ($m^2$), nastawę rotametrów w **$l/min$** oraz rodzaj i grubość posadzki/jastrychu ($mm$).
-- **Fotorealistyczna wizualizacja rozdzielacza (Karta Lovelace RWD)**: Prawdziwy widok rozdzielacza hydraulicznego: stalowa belka zasilająca z pionowymi rotametrami, skalą w $l/min$ i pływakami, belka powrotna z siłownikami, zawory kulowe z termometrami (35°C / 30°C) oraz przyciski regulacji przepływu `[-]` `[+]` co 0.1 l/min.
-
-### Główne funkcje
-1. **Zarządzanie rozdzielaczami**: Obsługa wielu rozdzielaczy, sumaryczny przepływ objętościowy ($l/min$ i $l/h$) oraz maksymalne straty ciśnienia na obiegach.
-2. **Strefy i właściwości wylewki**: Parametryzacja powierzchni ($m^2$), rodzaju wylewki (anhydrytowa, cementowa, sucha) oraz jej grubości ($mm$). Wyliczanie masy posadzki, oporu cieplnego i bezwładności termicznej (h).
-3. **Automatyczna estymacja długości pętli**: Wyliczanie długości obiegów rur PE na podstawie metrażu, liczby pętli, rozstawu (10, 15, 20 cm) oraz odległości do rozdzielacza.
-4. **Rotametry jako encje w HA**: Odczyt i nastawy przepływu ($l/min$ i $l/h$) poprzez dedykowane encje `number.*` dostępne dla pulpitów i automatyzacji.
-5. **Diagnostyka hydrauliczna**: Obliczanie prędkości przepływu ($m/s$) i strat ciśnienia ($\Delta p$ w $kPa$) równaniem Darcy-Weisbacha. Automatyczne wykrywanie obiegów zdławionych, przewymiarowanych oraz pętli za długich (> 100 m dla rury 16x2).
-6. **Responsywna karta Lovelace (RWD)**: Gotowy widok belki rozdzielacza z możliwością przełączania kondygnacji (Parter / Piętro).
-
-### Instalacja przez serwer Home Assistant
-
-#### Sposób 1: Przez HACS (Rekomendowany)
-1. Otwórz **HACS** w menu Home Assistant.
-2. W prawym górnym rogu kliknij menu **trzy kropki** i wybierz **Niestandardowe repozytoria** (*Custom repositories*).
-3. Wklej adres URL repozytorium: `https://github.com/underface/ha-underfloor-heating`
-4. Wybierz kategorię: **Integracja** (*Integration*).
-5. Kliknij **Dodaj** (*Add*), znajdź **Zarządzanie Ogrzewaniem Podłogowym** na liście i kliknij **Pobierz** (*Download*).
-6. Zrestartuj Home Assistant.
-7. Wejdź w **Ustawienia** $\rightarrow$ **Urządzenia i usługi** $\rightarrow$ **Dodaj integrację**, wyszukaj **Zarządzanie Ogrzewaniem Podłogowym** i skonfiguruj instalację.
-
-#### Sposób 2: Instalacja ręczna
-1. Pobierz archiwum `ha-underfloor-heating.zip`.
-2. Skopiuj katalog `custom_components/underfloor_heating` do folderu `/config/custom_components/` na swoim serwerze Home Assistant.
-3. Zrestartuj Home Assistant.
-4. Przejdź do **Ustawienia** $\rightarrow$ **Urządzenia i usługi** $\rightarrow$ **Dodaj integrację** i wybierz wtyczkę z listy.
+### Dedicated Sidebar Panel ("Podłogówka")
+Registered automatically in Home Assistant's left navigation menu (`underfloor-heating-panel.js`):
+- Full-screen configuration modal matching the manifold layout,
+- Stepper controls `[-]` `N` `[+]` for room loops and rotameters,
+- Instant sync via service `underfloor_heating.save_manifold_configuration`.
 
 ---
 
 ## 🇩🇪 Deutsch
 
 ### Übersicht
-**Fußbodenheizungs-Manager** ist eine benutzerdefinierte Home Assistant-Integration zur Berechnung, Steuerung und hydraulischen Optimierung wassergeführter Fußbodenheizungssysteme.
+**Fußbodenheizungs-Manager** ist eine Home Assistant Integration für wassergeführte Fußbodenheizungsverteiler mit **manuellen Durchflussmessern (Tacosettern / Rotametern)**.
 
-### Neuerungen in Version 1.1.0:
-- **Optimierte Einrichtung (Verteiler $\rightarrow$ Heizkreise)**: Verteiler anlegen (z. B. Erdgeschoss, 8 Kreise) – die Heizkreise werden sofort automatisch generiert.
-- **Gruppenzuweisung**: Wählen Sie einen oder mehrere Kreise gleichzeitig aus und definieren Sie Raum, Fläche ($m^2$), Durchfluss in **$l/min$**, Estrichart und Dicke ($mm$) in einem Schritt.
-- **Realistische Verteiler-Visualisierung (Lovelace RWD)**: Komplette grafische Darstellung des Heizkreisverteilers: Edelstahl-Vorlaufbalken mit vertikalen Durchflussmessern und beweglichen Schwimmern, Rücklaufbalken mit Stellantrieben, Kugelhähne mit Thermometern und Tasten zur Durchflusseinstellung (`+/- 0.1 l/min`).
+Die Integration erfordert keine teuren IoT-Sensoren. Sie stellen einfach den abgelesenen Wert des Schauglases ($l/min$ oder $l/h$) ein, und die physikalische Berechnungslogik ermittelt in Echtzeit:
+- Exakte Rohrlänge ($m$) aus Raumfläche, Kreisanzahl und Verlegeabstand,
+- Druckverlust $\Delta p$ ($kPa$) nach Darcy-Weisbach und Colebrook-White,
+- Fließgeschwindigkeit ($m/s$) mit Warnung bei Entlüftungsrisiko (< 0.15 m/s) oder Strömungsgeräuschen (> 0.8 m/s),
+- Raum-Gesamtdurchfluss ($l/min$, $l/h$, $m^3/h$) und Heizleistung ($kW$),
+- Estrich-Eigenschaften und thermische Trägheit (Stunden).
 
-### Hauptfunktionen
-1. **Verteiler-Verwaltung**: Konfiguration von Heizkreisverteilern, Erfassung des Gesamtdurchflusses ($l/min$ und $l/h$) sowie des maximalen Druckverlusts.
-2. **Heizzonen & Estrich-Dynamik**: Definition von Raumflächen ($m^2$), Estrichart (Anhydrit, Zement, Trockenbau) und Estrichdicke ($mm$). Berechnung von thermischer Masse, Wärmedurchgangswiderstand und thermischer Trägheit (Stunden).
-3. **Automatische Heizkreislängen-Schätzung**: Exakte Berechnung der Rohrlängen basierend auf Raumgröße, Heizkreisanzahl, Verlegeabstand (10, 15, 20 cm) und Anbindeleitung zum Verteiler.
-4. **Durchflussmesser als native HA-Entitäten**: Direktes Einstellen und Auslesen der Soll-Durchflüsse ($l/min$ und $l/h$) über `number.*`-Entitäten für Dashboards und Automatisierungen.
-5. **Hydraulische Fehlerdiagnose**: Berechnung von Strömungsgeschwindigkeit ($m/s$) und Druckabfall ($\Delta p$ in $kPa$) nach Darcy-Weisbach. Erkennt hydraulisch unterversorgte, überdimensionierte oder zu lange Heizkreise (> 100 m bei 16x2 Rohr).
-6. **Responsive Lovelace-Karte (RWD)**: Realitätsnahe Benutzeroberfläche mit Verteiler-Umschaltung (Erdgeschoss / Obergeschoss).
-
-### Installation über Home Assistant
-
-#### Option 1: HACS (Empfohlen)
-1. Öffnen Sie **HACS** in Home Assistant.
-2. Klicken Sie oben rechts auf das **Drei-Punkte-Menü** und wählen Sie **Benutzerdefinierte Repositories**.
-3. Fügen Sie die Repository-URL ein: `https://github.com/underface/ha-underfloor-heating`
-4. Wählen Sie als Kategorie: **Integration**.
-5. Klicken Sie auf **Hinzufügen**, suchen Sie nach **Fußbodenheizungs-Manager** und wählen Sie **Herunterladen**.
-6. Starten Sie Home Assistant neu.
-7. Navigieren Sie zu **Einstellungen** $\rightarrow$ **Geräte & Dienste** $\rightarrow$ **Integration hinzufügen**, suchen Sie nach **Fußbodenheizung** und schließen Sie die Einrichtung ab.
-
-#### Option 2: Manuelle Installation
-1. Laden Sie das Archiv `ha-underfloor-heating.zip` herunter.
-2. Kopieren Sie den Ordner `custom_components/underfloor_heating` in das Verzeichnis `/config/custom_components/` Ihres Home Assistant-Servers.
-3. Starten Sie Home Assistant neu.
-4. Gehen Sie zu **Einstellungen** $\rightarrow$ **Geräte & Dienste** $\rightarrow$ **Integration hinzufügen** und wählen Sie die Integration aus.
+### 3-Stufige Gerätehierarchie
+- **Ebene 1 (Verteiler)**: Hauptgerät für den Heizkreisverteiler.
+- **Ebene 2 (Räume / Zonen)**: Zugeordnet über `via_device_id` zum Verteiler.
+- **Ebene 3 (Heizkreise)**: Zugeordnet über `via_device_id` zum jeweiligen Raum.
 
 ---
 
 ## 🇪🇸 Español
 
 ### Descripción general
-**Gestor de Suelo Radiante** es una integración personalizada para Home Assistant diseñada para el cálculo, control y equilibrado hidráulico de sistemas de calefacción por suelo radiante por agua.
+**Gestor de Suelo Radiante** es una integración para Home Assistant orientada a colectores de suelo radiante con **caudalímetros (rotámetros) manuales**.
 
-### Novedades en la versión 1.1.0:
-- **Configuración rápida (Colector $\rightarrow$ Circuitos)**: Añada un colector (ej. Planta baja, 8 circuitos) y los circuitos se generan de inmediato.
-- **Asignación múltiple**: Seleccione uno o varios circuitos a la vez y defina estancia, superficie ($m^2$), caudal en **$l/min$**, tipo de recrecido y espesor ($mm$) en un solo paso.
-- **Visualización gráfica del colector (Lovelace RWD)**: Representación visual completa del colector: barra de impulsión de acero con caudalímetros verticales y flotadores móviles, barra de retorno con actuadores, válvulas con termómetros y botones de regulación rápida (`+/- 0.1 l/min`).
+No precisa sensores inteligentes por circuito. El usuario introduce el valor visual del caudalímetro ($l/min$ o $l/h$) y el motor de cálculo obtiene automáticamente:
+- Longitud real del circuito ($m$) según superficie, número de tubos y separación,
+- Pérdida de carga $\Delta p$ ($kPa$) mediante formulación Darcy-Weisbach y Colebrook-White,
+- Velocidad del fluido ($m/s$) con alertas por baja velocidad (< 0.15 m/s) o ruido (> 0.8 m/s),
+- Caudal total por estancia ($l/min$, $l/h$, $m^3/h$) y potencia térmica suministrada ($kW$),
+- Inercia térmica del recrecido (horas) para mortero de cemento, anhidrita y solera seca.
 
-### Características principales
-1. **Gestión de colectores**: Control de colectores de distribución, monitorización del caudal volumétrico total ($l/min$ y $l/h$) y pérdidas de carga máximas.
-2. **Zonas y propiedades del recrecido**: Configuración de superficie ($m^2$), tipo de recrecido (anhidrita, cemento, solera seca) y espesor ($mm$). Cálculo de masa térmica, resistencia térmica e inercia térmica de la estancia (horas).
-3. **Estimación automática de longitud de circuitos**: Cálculo automático de metros de tubería PE según superficie, circuitos, paso de tubos (10, 15, 20 cm) y distancia de conexión al colector.
-4. **Caudalímetros como entidades nativas de HA**: Lectura y ajuste directo de los caudales ($l/min$ y $l/h$) mediante entidades `number.*`, preparadas para tarjetas y automatizaciones.
-5. **Diagnóstico hidráulico**: Estimación de velocidad del fluido ($m/s$) y pérdidas de presión ($\Delta p$ en $kPa$) mediante la formulación de Darcy-Weisbach. Detección automática de circuitos estrangulados, sobredimensionados o con longitud excesiva (> 100 m para tubo 16x2).
-6. **Tarjeta Lovelace adaptable (RWD)**: Interfaz visual de colector con selector entre plantas (Planta baja / Planta alta).
-
-### Instalación en el servidor Home Assistant
-
-#### Opción 1: Mediante HACS (Recomendado)
-1. Abra **HACS** en la interfaz de Home Assistant.
-2. Haga clic en el **menú de tres puntos** (arriba a la derecha) y seleccione **Repositorios personalizados** (*Custom repositories*).
-3. Introduzca la URL de su repositorio: `https://github.com/underface/ha-underfloor-heating`
-4. Seleccione la categoría: **Integración** (*Integration*).
-5. Haga clic en **Añadir**, busque **Gestor de Suelo Radiante** en la lista y presione **Descargar**.
-6. Reinicie Home Assistant.
-7. Vaya a **Ajustes** $\rightarrow$ **Dispositivos y servicios** $\rightarrow$ **Añadir integración**, busque **Suelo Radiante** y siga el asistente.
-
-#### Opción 2: Instalación manual
-1. Descargue el archivo `ha-underfloor-heating.zip`.
-2. Copie la carpeta `custom_components/underfloor_heating` dentro del directorio `/config/custom_components/` de su servidor Home Assistant.
-3. Reinicie Home Assistant.
-4. Vaya a **Ajustes** $\rightarrow$ **Dispositivos y servicios** $\rightarrow$ **Añadir integración** y seleccione la integración.
+### Jerarquía en 3 niveles
+- **Nivel 1 (Colector)**: Equipo principal en el registro de dispositivos.
+- **Nivel 2 (Estancias / Zonas)**: Vinculado mediante `via_device_id` al colector.
+- **Nivel 3 (Circuitos de calefacción)**: Vinculado mediante `via_device_id` a la estancia.

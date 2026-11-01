@@ -4,7 +4,7 @@ Generuje encje sensorów dla rozdzielaczy, stref podłogówki oraz pojedynczych 
 w tym estymacje długości rur, obliczenia hydrauliczne, właściwości wylewki
 oraz stan bilansowania z kompletem atrybutów dla automatyzacji i zewnętrznych dodatków.
 
-Wersja: 1.0.0
+Wersja: 1.4.0
 """
 
 from __future__ import annotations

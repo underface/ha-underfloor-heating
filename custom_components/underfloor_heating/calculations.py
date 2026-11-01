@@ -3,7 +3,7 @@
 Zawiera estymację długości pętli, obliczenia hydrauliczne (opory, prędkości,
 spadki ciśnień) oraz diagnostykę zrównoważenia rozdzielacza i stref.
 
-Wersja: 1.0.0
+Wersja: 1.4.0
 """
 
 import math

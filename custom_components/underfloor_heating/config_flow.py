@@ -48,6 +48,7 @@ from .const import (
     DEFAULT_PIPE_TYPE,
     DOMAIN,
 )
+from .helpers import slugify_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,25 +83,6 @@ SCREED_OVERRIDE_SELECTOR = selector.SelectSelector(
 )
 
 
-def _make_id(name: str) -> str:
-    """Tworzy bezpieczny identyfikator ASCII z polskiej nazwy."""
-    clean = (
-        name.lower()
-        .replace(" ", "_")
-        .replace("ł", "l")
-        .replace("ą", "a")
-        .replace("ę", "e")
-        .replace("ó", "o")
-        .replace("ś", "s")
-        .replace("ź", "z")
-        .replace("ż", "z")
-        .replace("ć", "c")
-        .replace("ń", "n")
-    )
-    # Usuń znaki niealfanumeryczne (z wyjątkiem _)
-    return "".join(c for c in clean if c.isalnum() or c == "_") or "obiekt"
-
-
 # ===========================================================================
 #  KONFIGURACJA PIERWSZA INSTALACJI (KROK 1: ROZDZIELACZ → KROK 2: POKOJE)
 # ===========================================================================
@@ -131,7 +113,7 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             screed_type = user_input.get("screed_type", "cement")
             screed_thick = float(user_input.get("screed_thickness_mm", 50.0))
 
-            m_id = _make_id(m_name) or "rozdzielacz_parter"
+            m_id = slugify_id(m_name) or "rozdzielacz_parter"
             self._pending_manifold_id = m_id
             self._pending_manifold_name = m_name
             self._pending_manifold_data = {
@@ -247,7 +229,13 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 screed = m_screed
                 thick = m_thick
 
-            z_id = _make_id(r_name) or f"strefa_{room_idx + 1}"
+            base_zid = slugify_id(r_name) or f"strefa_{room_idx + 1}"
+            z_id = base_zid
+            collision_counter = 1
+            while z_id in data[CONF_ZONES]:
+                z_id = f"{base_zid}_{collision_counter}"
+                collision_counter += 1
+
             area_per_loop = round(r_area / max(1, loops_cnt), 2)
             created_loop_ids = []
 
@@ -325,7 +313,7 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
         self._target_manifold_id: str | None = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Główne menu opcji."""
+        """Główne menu opcji konfiguracji."""
         actions = {
             "add_room": "➕ Dodaj pomieszczenie do rozdzielacza",
             "edit_room": "✏️ Edytuj pomieszczenie (metraż, wylewka, rotametr)",
@@ -386,12 +374,12 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
                 screed = m_screed
                 thick = m_thick
 
-            z_id = _make_id(r_name)
-            base_zid = z_id
-            cnt = 1
+            base_zid = slugify_id(r_name)
+            z_id = base_zid
+            collision_counter = 1
             while z_id in self.options[CONF_ZONES]:
-                z_id = f"{base_zid}_{cnt}"
-                cnt += 1
+                z_id = f"{base_zid}_{collision_counter}"
+                collision_counter += 1
 
             area_per_loop = round(r_area / max(1, r_loops), 2)
             flow_lh = round(r_flow * 60.0, 1)
@@ -582,12 +570,12 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
             screed_type = user_input.get("screed_type", "cement")
             screed_thick = float(user_input.get("screed_thickness_mm", 50.0))
 
-            m_id = _make_id(m_name)
-            base_id = m_id
-            cnt = 1
+            base_id = slugify_id(m_name)
+            m_id = base_id
+            collision_counter = 1
             while m_id in self.options[CONF_MANIFOLDS]:
-                m_id = f"{base_id}_{cnt}"
-                cnt += 1
+                m_id = f"{base_id}_{collision_counter}"
+                collision_counter += 1
 
             self.options[CONF_MANIFOLDS][m_id] = {
                 "name": m_name,

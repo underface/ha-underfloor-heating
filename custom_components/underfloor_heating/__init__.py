@@ -1,11 +1,11 @@
 """Inicjalizacja integracji Home Assistant dla Ogrzewania Podłogowego.
 
-Umożliwia definiowanie rozdzielaczy, stref grzewczych, pętli podłogówki,
-automatyczną estymację długości, obliczanie rotametrów oraz pełną diagnostykę
+Umożliwia definiowanie rozdzielaczy, stref grzewczych (pomieszczeń) i pętli podłogówki,
+automatyczną estymację długości rur, obliczanie nastaw rotametrów oraz pełną diagnostykę
 hydrauliczną i termiczną dostępną jako encje i atrybuty HA.
-Udostępnia usługi do zmiany konfiguracji stref i pętli w dowolnym momencie.
+Udostępnia dedykowany panel boczny w menu HA oraz usługi do zarządzania konfiguracją.
 
-Wersja: 1.0.4
+Wersja: 1.4.0
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from .helpers import (
     get_loop_device_info,
     get_manifold_device_info,
     get_zone_device_info,
+    slugify_id,
 )
 
 from .const import (
@@ -58,7 +59,7 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
 ]
 
-# Schematy usług
+# Schematy walidacji dla usług HA
 SET_FLOW_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_LOOP_ID): cv.string,
@@ -93,7 +94,7 @@ URL_BASE = f"/{DOMAIN}_frontend"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Konfiguracja integracji oraz rejestracja zasobów frontendowych (HACS) i panelu bocznego."""
+    """Konfiguracja integracji, rejestracja zasobów frontendowych (HACS) i bocznego panelu HA."""
     hass.data.setdefault(DOMAIN, {})
 
     frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
@@ -120,7 +121,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             except Exception as err:
                 _LOGGER.warning("Nie udało się zarejestrować zasobów frontend: %s", err)
 
-    # Rejestracja dedykowanego panelu bocznego w menu głównym Home Assistant
+    # Rejestracja dedykowanego panelu bocznego w menu głównym Home Assistant ("Podłogówka")
     try:
         from homeassistant.components import panel_custom
 
@@ -136,13 +137,13 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         )
         _LOGGER.info("Zarejestrowano dedykowany panel boczny 'Podłogówka' w menu bocznym HA")
     except Exception as err:
-        _LOGGER.debug("Błąd rejestracji panelu bocznego panel_custom: %s", err)
+        _LOGGER.debug("Informacja o panelu bocznym panel_custom: %s", err)
 
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Inicjalizacja wpisu konfiguracyjnego."""
+    """Inicjalizacja wpisu konfiguracyjnego integracji."""
     hass.data.setdefault(DOMAIN, {})
 
     coordinator_data = {
@@ -161,11 +162,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Synchronizacja i budowa 3-poziomowej hierarchii w Rejestrze Urządzeń HA:
     # 1 - Rozdzielacz (Główny)
-    #   └── 2 - Pomieszczenie (Połączone przez Rozdzielacz)
-    #         └── 3 - Pętle (Połączone przez Pomieszczenie)
+    #   └── 2 - Pomieszczenie (Połączone przez Rozdzielacz: via_device_id)
+    #         └── 3 - Pętle (Połączone przez Pomieszczenie: via_device_id)
     dev_reg = dr.async_get(hass)
 
-    # Poziom 1: Rozdzielacze
+    # Poziom 1: Rozdzielacze (Manifolds)
     manifold_devs = {}
     for manifold_id, m_data in coordinator_data[CONF_MANIFOLDS].items():
         m_name = m_data.get("name", f"Rozdzielacz {manifold_id}")
@@ -187,7 +188,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     default_m_id = list(coordinator_data[CONF_MANIFOLDS].keys())[0] if coordinator_data[CONF_MANIFOLDS] else "parter"
     default_m_dev = manifold_devs.get(default_m_id)
 
-    # Poziom 2: Pomieszczenia (Strefy)
+    # Poziom 2: Pomieszczenia / Strefy (Zones)
     zone_devs = {}
     for zone_id, z_data in coordinator_data[CONF_ZONES].items():
         z_name = z_data.get("name", zone_id)
@@ -212,7 +213,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             pass
         zone_devs[zone_id] = z_dev
 
-    # Poziom 3: Pętle podłogówki
+    # Poziom 3: Pętle podłogówki (Loops)
     for loop_id, l_data in coordinator_data[CONF_LOOPS].items():
         z_id = l_data.get("zone_id")
         z_info = coordinator_data[CONF_ZONES].get(z_id, {})
@@ -244,7 +245,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception:
             pass
 
-    # Usunięcie starych lub osieroconych urządzeń z rejestru HA
+    # Usunięcie starych lub osieroconych urządzeń z rejestru HA po zmianie konfiguracji
     try:
         active_identifiers = set()
         for m_id in coordinator_data[CONF_MANIFOLDS]:
@@ -375,20 +376,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 r_thick = default_thick
                 r_override = "default"
 
-            # Utwórz unikalny identyfikator strefy
-            z_id = (
-                r_name.lower()
-                .replace(" ", "_")
-                .replace("ł", "l")
-                .replace("ą", "a")
-                .replace("ę", "e")
-                .replace("ó", "o")
-                .replace("ś", "s")
-                .replace("ź", "z")
-                .replace("ż", "z")
-                .replace("ć", "c")
-                .replace("ń", "n")
-            ) or f"strefa_{room_idx + 1}"
+            # Utwórz unikalny identyfikator strefy z obsługą kolizji jednakowych nazw
+            base_zid = slugify_id(r_name) or f"strefa_{room_idx + 1}"
+            z_id = base_zid
+            collision_counter = 1
+            while z_id in existing_zones:
+                z_id = f"{base_zid}_{collision_counter}"
+                collision_counter += 1
 
             loops_list = room.get("loops", [{"flow": 1.5}])
             loops_count = len(loops_list)

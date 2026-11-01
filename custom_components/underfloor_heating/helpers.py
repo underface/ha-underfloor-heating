@@ -17,8 +17,30 @@ from homeassistant.helpers.entity import DeviceInfo
 from .const import CONF_ZONES, DOMAIN
 
 
+def slugify_id(name: str) -> str:
+    """Tworzy bezpieczny identyfikator ASCII z polskiej nazwy (zamienia spacje i polskie znaki diakrytyczne)."""
+    clean = (
+        str(name or "")
+        .strip()
+        .lower()
+        .replace(" ", "_")
+        .replace("ł", "l")
+        .replace("ą", "a")
+        .replace("ę", "e")
+        .replace("ó", "o")
+        .replace("ś", "s")
+        .replace("ź", "z")
+        .replace("ż", "z")
+        .replace("ć", "c")
+        .replace("ń", "n")
+    )
+    # Usuń wszelkie pozostałe znaki niealfanumeryczne (z wyjątkiem podkreślenia)
+    sanitized = "".join(c for c in clean if c.isalnum() or c == "_")
+    return sanitized or "obiekt"
+
+
 def clean_loop_name(raw_name: str, section_number: int | str = 1, room_name: str = "Strefa") -> str:
-    """Oczyszcza nazwę pętli z podwójnych prefiksów 'Pętla:' i formatuje jednolicie."""
+    """Oczyszcza nazwę pętli z powielonych prefiksów 'Pętla:' i formatuje jednolicie."""
     clean = str(raw_name or "").strip()
     while clean.startswith("Pętla:"):
         clean = clean[len("Pętla:"):].strip()
@@ -92,4 +114,3 @@ def get_loop_device_info(
         suggested_area=room_name,
         via_device=parent_via,
     )
-

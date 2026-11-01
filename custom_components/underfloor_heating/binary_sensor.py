@@ -3,7 +3,7 @@
 Dostarcza jednoznaczne stany logiczne (zrównoważenie pętli, wykrycie problemów,
 stan rozdzielacza) dla automatyzacji, powiadomień i innych aplikacji HA.
 
-Wersja: 1.0.0
+Wersja: 1.4.0
 """
 
 from __future__ import annotations

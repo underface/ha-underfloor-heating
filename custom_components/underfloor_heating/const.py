@@ -1,6 +1,6 @@
 """Stałe i definicje dla integracji Home Assistant Underfloor Heating.
 
-Wersja: 1.2.0
+Wersja: 1.4.0
 """
 
 from typing import Final

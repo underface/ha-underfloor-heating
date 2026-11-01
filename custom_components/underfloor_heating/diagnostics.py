@@ -3,7 +3,7 @@
 Umożliwia pobranie pełnego raportu hydraulicznego i termicznego instalacji
 przez interfejs diagnostyki Home Assistant (Download Diagnostics) oraz API.
 
-Wersja: 1.0.0
+Wersja: 1.4.0
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ async def async_get_config_entry_diagnostics(
     data = hass.data[DOMAIN][entry.entry_id]
 
     report: dict[str, Any] = {
-        "integration_version": "1.0.0",
+        "integration_version": "1.4.0",
         "entry_id": entry.entry_id,
         "manifolds": {},
         "zones": {},

@@ -3,7 +3,7 @@
 Umożliwia odczyt i sterowanie nastawą rotametru w l/h (oraz l/min) dla każdej
 pętli podłogówki z poziomu interfejsu Home Assistant oraz automatyzacji.
 
-Wersja: 1.0.0
+Wersja: 1.4.0
 """
 
 from __future__ import annotations

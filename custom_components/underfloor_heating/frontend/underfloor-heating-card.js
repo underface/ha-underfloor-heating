@@ -1,6 +1,6 @@
 /**
  * Karta Lovelace: Rozdzielacz Ogrzewania Podłogowego (RWD)
- * Wersja: 1.3.0
+ * Wersja: 1.4.0
  * 
  * Odwzorowanie 1:1 z projektu referencyjnego:
  * - Górne statystyki w 3 kartach: Przepływ sumaryczny, Pętla krytyczna Δp, Różnica ΔT i Moc kW

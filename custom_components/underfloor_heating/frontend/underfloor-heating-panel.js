@@ -1018,3 +1018,4 @@ class UnderfloorHeatingPanel extends HTMLElement {
 }
 
 customElements.define("underfloor-heating-panel", UnderfloorHeatingPanel);
+
