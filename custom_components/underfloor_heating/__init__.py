@@ -28,6 +28,7 @@ from .const import (
     ATTR_NAME,
     ATTR_PIPE_TYPE,
     ATTR_ROTAMETER_FLOW_LH,
+    ATTR_ROTAMETER_FLOW_LMIN,
     ATTR_SCREED_THICKNESS,
     ATTR_SCREED_TYPE,
     ATTR_SPACING_CM,
@@ -35,6 +36,9 @@ from .const import (
     CONF_LOOPS,
     CONF_MANIFOLDS,
     CONF_ZONES,
+    DEFAULT_APPROACH_LENGTH_M,
+    DEFAULT_PIPE_SPACING_CM,
+    DEFAULT_PIPE_TYPE,
     DOMAIN,
 )
 
@@ -184,6 +188,136 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "update_loop",
         handle_update_loop,
         schema=UPDATE_LOOP_SCHEMA,
+    )
+
+    # 4. Usługa zapisu pełnej konfiguracji pomieszczeń i pętli z interaktywnego panelu Lovelace/modala
+    async def handle_save_manifold_config(call: ServiceCall) -> None:
+        manifold_id = call.data["manifold_id"]
+        rooms = call.data.get("rooms", [])
+        new_options = copy.deepcopy(dict(entry.options or entry.data))
+        new_options.setdefault(CONF_MANIFOLDS, {})
+        new_options.setdefault(CONF_ZONES, {})
+        new_options.setdefault(CONF_LOOPS, {})
+
+        if manifold_id not in new_options[CONF_MANIFOLDS]:
+            _LOGGER.warning("Rozdzielacz %s nie istnieje w konfiguracji", manifold_id)
+            return
+
+        m_data = new_options[CONF_MANIFOLDS][manifold_id]
+        default_screed = m_data.get(ATTR_SCREED_TYPE, "cement")
+        default_thick = float(m_data.get(ATTR_SCREED_THICKNESS, 50.0))
+
+        # Usuń dotychczasowe pętle przypisane do tego rozdzielacza
+        existing_loops = new_options[CONF_LOOPS]
+        for lid in list(existing_loops.keys()):
+            if existing_loops[lid].get("manifold_id") == manifold_id:
+                existing_loops.pop(lid, None)
+
+        # Usuń dotychczasowe strefy przypisane do tego rozdzielacza
+        existing_zones = new_options[CONF_ZONES]
+        for zid in list(existing_zones.keys()):
+            if existing_zones[zid].get("manifold_id") == manifold_id:
+                existing_zones.pop(zid, None)
+
+        global_loop_idx = 1
+        for room_idx, room in enumerate(rooms):
+            r_name = str(room.get("name", f"Pomieszczenie {room_idx + 1}")).strip()
+            r_area = float(room.get("area", 15.0))
+            raw_screed = str(room.get("screed", "default")).lower()
+            if "cement" in raw_screed:
+                r_screed = "cement"
+                r_thick = 50.0
+                r_override = "cement"
+            elif "anhydr" in raw_screed:
+                r_screed = "anhydrite"
+                r_thick = 45.0
+                r_override = "anhydrite"
+            elif "such" in raw_screed or "dry" in raw_screed:
+                r_screed = "dry_screed"
+                r_thick = 25.0
+                r_override = "dry_screed"
+            else:
+                r_screed = default_screed
+                r_thick = default_thick
+                r_override = "default"
+
+            # Utwórz unikalny identyfikator strefy
+            z_id = (
+                r_name.lower()
+                .replace(" ", "_")
+                .replace("ł", "l")
+                .replace("ą", "a")
+                .replace("ę", "e")
+                .replace("ó", "o")
+                .replace("ś", "s")
+                .replace("ź", "z")
+                .replace("ż", "z")
+                .replace("ć", "c")
+                .replace("ń", "n")
+            ) or f"strefa_{room_idx + 1}"
+
+            loops_list = room.get("loops", [{"flow": 1.5}])
+            loops_count = len(loops_list)
+            area_per_loop = round(r_area / max(1, loops_count), 2)
+
+            created_loop_ids = []
+            for l_idx, l_data in enumerate(loops_list):
+                flow_lmin = float(l_data.get("flow", 1.5))
+                flow_lh = round(flow_lmin * 60.0, 1)
+                lid = f"petla_{manifold_id}_{global_loop_idx}"
+                created_loop_ids.append(lid)
+
+                existing_loops[lid] = {
+                    "name": f"Pętla {global_loop_idx}: {r_name}",
+                    "manifold_id": manifold_id,
+                    "section_number": global_loop_idx,
+                    "zone_name": r_name,
+                    "zone_id": z_id,
+                    "area_m2": area_per_loop,
+                    "pipe_type": DEFAULT_PIPE_TYPE,
+                    "spacing_cm": DEFAULT_PIPE_SPACING_CM,
+                    "approach_length_m": DEFAULT_APPROACH_LENGTH_M,
+                    "screed_type": r_screed,
+                    "screed_thickness_mm": r_thick,
+                    "screed_override": r_override,
+                    "floor_covering": "tiles",
+                    "loops_in_zone": loops_count,
+                    ATTR_ROTAMETER_FLOW_LH: flow_lh,
+                    ATTR_ROTAMETER_FLOW_LMIN: flow_lmin,
+                }
+                # Aktualizacja stanu rotametrów w koordynatorze
+                if entry.entry_id in hass.data[DOMAIN]:
+                    hass.data[DOMAIN][entry.entry_id]["rotameter_flows"][lid] = flow_lh
+
+                global_loop_idx += 1
+
+            existing_zones[z_id] = {
+                "name": r_name,
+                "manifold_id": manifold_id,
+                "area_m2": r_area,
+                "screed_type": r_screed,
+                "screed_thickness_mm": r_thick,
+                "loops_count": loops_count,
+                "loops": created_loop_ids,
+                "target_temp": 21.0,
+                "heat_load_w_m2": 45.0,
+                "floor_covering": "tiles",
+            }
+
+        # Zaktualizuj liczbę sekcji rozdzielacza
+        m_data["sections_count"] = global_loop_idx - 1
+        _LOGGER.info(
+            "Zapisano konfigurację rozdzielacza %s: %d pomieszczeń, %d pętli",
+            manifold_id,
+            len(rooms),
+            global_loop_idx - 1,
+        )
+        hass.config_entries.async_update_entry(entry, options=new_options)
+
+    hass.services.async_register(
+        DOMAIN,
+        "save_manifold_configuration",
+        handle_save_manifold_config,
     )
 
     # Nasłuchiwanie na aktualizację opcji konfiguracyjnych

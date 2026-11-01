@@ -188,6 +188,16 @@ def _sync_zones_from_loops(loops_dict: dict, manifolds_dict: dict) -> dict:
         if z_id in zones:
             loop_data["loops_in_zone"] = zones[z_id]["loops_count"]
 
+    # Zaktualizuj liczbę sekcji rozdzielacza na podstawie rzeczywistej liczby pętli
+    manifold_loops_count: dict[str, int] = {}
+    for loop_data in loops_dict.values():
+        m_id = loop_data.get("manifold_id")
+        if m_id:
+            manifold_loops_count[m_id] = manifold_loops_count.get(m_id, 0) + 1
+    for m_id, count in manifold_loops_count.items():
+        if m_id in manifolds_dict:
+            manifolds_dict[m_id]["sections_count"] = count
+
     return zones
 
 
@@ -263,12 +273,11 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return await self.async_step_add_manifold()
 
     async def async_step_add_manifold(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """KROK 1: Nazwa rozdzielacza, liczba pętli, lokalizacja, domyślna posadzka."""
+        """KROK 1: Nazwa rozdzielacza, lokalizacja, domyślna posadzka (liczba pętli wynika z pomieszczeń)."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             m_name = user_input["name"].strip()
-            sections_count = int(user_input["sections_count"])
             location = user_input.get("location", "Kotłownia / Parter").strip()
             screed_type = user_input.get("screed_type", "cement")
             screed_thick = float(user_input.get("screed_thickness_mm", 50.0))
@@ -277,20 +286,22 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not m_id:
                 m_id = "rozdzielacz_parter"
 
+            # Domyślny zestaw 5 sekcji: Salon (2 pętle), Kuchnia (1), Łazienka (1), Korytarz (1)
+            initial_sections = 5
             self._pending_manifold_id = m_id
             self._pending_manifold_name = m_name
-            self._pending_sections_count = sections_count
+            self._pending_sections_count = initial_sections
 
             self._pending_data.setdefault(CONF_MANIFOLDS, {})[m_id] = {
                 "name": m_name,
                 "location": location,
-                "sections_count": sections_count,
+                "sections_count": initial_sections,
                 "screed_type": screed_type,
                 "screed_thickness_mm": screed_thick,
             }
             self._pending_data.setdefault(CONF_LOOPS, {})
             self._pending_data[CONF_LOOPS] = _generate_default_loops_for_manifold(
-                m_id, sections_count, self._pending_data[CONF_LOOPS], screed_type, screed_thick
+                m_id, initial_sections, self._pending_data[CONF_LOOPS], screed_type, screed_thick
             )
 
             return await self.async_step_configure_loops()
@@ -298,9 +309,6 @@ class UnderfloorHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required("name", default="Rozdzielacz Parter"): cv.string,
-                vol.Required("sections_count", default=6): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=24)
-                ),
                 vol.Optional("location", default="Kotłownia / Parter"): cv.string,
                 vol.Required("screed_type", default="cement"): SCREED_SELECTOR,
                 vol.Required("screed_thickness_mm", default=50.0): vol.Coerce(float),
@@ -434,7 +442,6 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
 
         if user_input is not None:
             m_name = user_input["name"].strip()
-            sections_count = int(user_input["sections_count"])
             location = user_input.get("location", "").strip()
             screed_type = user_input.get("screed_type", "cement")
             screed_thick = float(user_input.get("screed_thickness_mm", 50.0))
@@ -446,19 +453,20 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
                 m_id = f"{base_id}_{cnt}"
                 cnt += 1
 
+            initial_sections = 5
             self.options[CONF_MANIFOLDS][m_id] = {
                 "name": m_name,
                 "location": location,
-                "sections_count": sections_count,
+                "sections_count": initial_sections,
                 "screed_type": screed_type,
                 "screed_thickness_mm": screed_thick,
             }
             self.options[CONF_LOOPS] = _generate_default_loops_for_manifold(
-                m_id, sections_count, self.options[CONF_LOOPS], screed_type, screed_thick
+                m_id, initial_sections, self.options[CONF_LOOPS], screed_type, screed_thick
             )
 
             self._active_manifold_id = m_id
-            self._pending_sections_count = sections_count
+            self._pending_sections_count = initial_sections
             self._pending_manifold_name = m_name
 
             return await self.async_step_configure_loops()
@@ -466,9 +474,6 @@ class UnderfloorHeatingOptionsFlowHandler(config_entries.OptionsFlow):
         schema = vol.Schema(
             {
                 vol.Required("name", default=default_name): cv.string,
-                vol.Required("sections_count", default=6): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=24)
-                ),
                 vol.Optional("location", default="Kotłownia / Parter"): cv.string,
                 vol.Required("screed_type", default="cement"): SCREED_SELECTOR,
                 vol.Required("screed_thickness_mm", default=50.0): vol.Coerce(float),

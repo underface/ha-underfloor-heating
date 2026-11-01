@@ -3,10 +3,9 @@
     "step": {
       "add_manifold": {
         "title": "Dodaj rozdzielacz",
-        "description": "Wprowadź dane rozdzielacza oraz domyślny rodzaj posadzki dla całego piętra/rozdzielacza:",
+        "description": "Wprowadź dane rozdzielacza oraz domyślny rodzaj posadzki. Liczba pętli zostanie wyliczona z dodanych pomieszczeń:",
         "data": {
           "name": "Nazwa rozdzielacza (np. Rozdzielacz Parter)",
-          "sections_count": "Liczba pętli (1–24)",
           "location": "Lokalizacja (np. Kotłownia / Parter)",
           "screed_type": "Domyślny rodzaj posadzki na rozdzielaczu",
           "screed_thickness_mm": "Domyślna grubość wylewki (mm)"
@@ -127,10 +126,9 @@
       },
       "add_manifold": {
         "title": "Dodaj nowy rozdzielacz",
-        "description": "Wprowadź dane nowego rozdzielacza oraz domyślny typ posadzki:",
+        "description": "Wprowadź dane rozdzielacza oraz domyślny rodzaj posadzki:",
         "data": {
           "name": "Nazwa rozdzielacza (np. Rozdzielacz Parter)",
-          "sections_count": "Liczba pętli (1–24)",
           "location": "Lokalizacja (np. Kotłownia / Parter)",
           "screed_type": "Domyślny rodzaj posadzki na rozdzielaczu",
           "screed_thickness_mm": "Domyślna grubość wylewki (mm)"

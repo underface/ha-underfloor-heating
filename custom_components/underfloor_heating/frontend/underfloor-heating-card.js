@@ -777,12 +777,621 @@ class UnderfloorHeatingCard extends HTMLElement {
         .btn-modal { padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: none; }
         .btn-save { background: #0284c7; color: white; }
         .btn-cancel { background: #334155; color: #cbd5e1; }
-      </style>
+      
+        /* ROOM-FIRST KONFIGURACJA POMIESZCZEŃ I PĘTLI */
+        .header-action-btn {
+          background: rgba(56, 189, 248, 0.15);
+          border: 1px solid rgba(56, 189, 248, 0.45);
+          color: #38bdf8;
+          border-radius: 10px;
+          padding: 5px 12px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s ease;
+          margin-left: auto;
+        }
+        .header-action-btn:hover {
+          background: rgba(56, 189, 248, 0.3);
+          border-color: #38bdf8;
+          transform: translateY(-1px);
+        }
+
+        .rooms-modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(15, 23, 42, 0.75);
+          backdrop-filter: blur(6px);
+          display: none;
+          align-items: center;
+          justify-content: center;
+          z-index: 99999;
+          padding: 16px;
+          box-sizing: border-box;
+        }
+        .rooms-modal-container {
+          background: #fcf8f8;
+          color: #1c1917;
+          width: 100%;
+          max-width: 680px;
+          border-radius: 24px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          border: 1px solid #e7e5e4;
+          display: flex;
+          flex-direction: column;
+          max-height: 90vh;
+          overflow: hidden;
+          box-sizing: border-box;
+        }
+        .modal-top-bar {
+          padding: 16px 20px;
+          background: #ffffff;
+          border-bottom: 1px solid #e7e5e4;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+        }
+        .modal-top-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .modal-icon-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #57534e;
+          transition: background 0.2s;
+        }
+        .modal-icon-btn:hover {
+          background: #f5f5f4;
+        }
+        .modal-icon-btn svg {
+          width: 20px;
+          height: 20px;
+          fill: currentColor;
+        }
+        .modal-title {
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: #1c1917;
+          margin: 0;
+          letter-spacing: -0.01em;
+        }
+        .modal-subtitle {
+          font-size: 0.75rem;
+          color: #78716c;
+          margin: 2px 0 0 0;
+        }
+
+        .rooms-sticky-summary {
+          background: #1e1b4b;
+          color: #ffffff;
+          padding: 12px 20px;
+          flex-shrink: 0;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .summary-stat-group {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .summary-col {
+          display: flex;
+          flex-direction: column;
+        }
+        .summary-label {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #a5b4fc;
+          font-weight: 600;
+        }
+        .summary-val-row {
+          display: flex;
+          align-items: baseline;
+          gap: 4px;
+          margin-top: 2px;
+        }
+        .summary-num {
+          font-size: 1.25rem;
+          font-weight: 800;
+          color: #ffffff;
+          line-height: 1.2;
+        }
+        .summary-num.text-emerald {
+          color: #34d399;
+        }
+        .summary-sub {
+          font-size: 0.78rem;
+          color: #a5b4fc;
+        }
+        .summary-sep {
+          width: 1px;
+          height: 30px;
+          background: rgba(99, 102, 241, 0.4);
+        }
+        .slots-visual-box {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+        }
+        .slots-dots-container {
+          display: flex;
+          gap: 4px;
+        }
+        .slot-dot {
+          width: 20px;
+          height: 24px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 800;
+          transition: all 0.2s ease;
+        }
+        .slot-dot.occupied {
+          background: #34d399;
+          color: #0f172a;
+          transform: scale(1.05);
+        }
+        .slot-dot.free {
+          background: rgba(49, 46, 129, 0.7);
+          color: #818cf8;
+          border: 1px solid #3730a3;
+        }
+        .slots-status-text {
+          font-size: 11px;
+          color: #c7d2fe;
+          margin-top: 3px;
+        }
+
+        .rooms-help-banner {
+          background: #fffbeb;
+          border-bottom: 1px solid #fde68a;
+          padding: 10px 20px;
+          font-size: 12px;
+          color: #78350f;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .help-close-btn {
+          font-weight: 800;
+          color: #b45309;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+        }
+
+        .rooms-list-scrollable {
+          padding: 16px 20px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          flex: 1;
+        }
+        .room-card {
+          background: #ffffff;
+          border: 1px solid #e7e5e4;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+          transition: border-color 0.2s ease;
+        }
+        .room-card:hover {
+          border-color: #d6d3d1;
+        }
+        .room-card-head {
+          padding: 12px 16px;
+          border-bottom: 1px solid #f5f5f4;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .room-head-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .room-card-idx {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #f5f5f4;
+          color: #57534e;
+          font-size: 12px;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #e7e5e4;
+        }
+        .room-card-title-badge {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #a8a29e;
+        }
+        .room-delete-btn {
+          background: transparent;
+          border: none;
+          color: #a8a29e;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+        .room-delete-btn:hover {
+          color: #e11d48;
+          background: #ffe4e6;
+        }
+        .room-delete-btn svg {
+          width: 16px;
+          height: 16px;
+          fill: currentColor;
+        }
+
+        .room-grid {
+          display: grid;
+          grid-template-columns: 5fr 3fr 4fr;
+          gap: 10px;
+          padding: 12px 16px;
+        }
+        @media (max-width: 600px) {
+          .room-grid { grid-template-columns: 1fr; }
+        }
+        .room-field-group {
+          display: flex;
+          flex-direction: column;
+        }
+        .room-field-group label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #78716c;
+          margin-bottom: 4px;
+        }
+        .room-field-group input, .room-field-group select {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 8px 12px;
+          background: rgba(245, 245, 244, 0.7);
+          border: 1px solid #d6d3d1;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #1c1917;
+          outline: none;
+          transition: all 0.2s ease;
+        }
+        .room-field-group input:focus, .room-field-group select:focus {
+          border-color: #4f46e5;
+          background: #ffffff;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .room-loops-section {
+          padding: 12px 16px 16px 16px;
+          background: #ffffff;
+          border-top: 1px solid #f5f5f4;
+        }
+        .loops-stepper-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 10px;
+        }
+        .loops-stepper-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #374151;
+        }
+        .loops-stepper-label svg {
+          width: 16px;
+          height: 16px;
+          fill: #4f46e5;
+        }
+        .stepper-control-box {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background: #f5f5f4;
+          padding: 3px;
+          border-radius: 10px;
+          border: 1px solid #e7e5e4;
+        }
+        .stepper-btn-mini {
+          width: 26px;
+          height: 26px;
+          border-radius: 7px;
+          background: #ffffff;
+          border: none;
+          font-size: 14px;
+          font-weight: 800;
+          color: #374151;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+          transition: all 0.15s ease;
+        }
+        .stepper-btn-mini:hover {
+          background: #f1f5f9;
+        }
+        .stepper-btn-mini.btn-plus {
+          background: #4f46e5;
+          color: #ffffff;
+        }
+        .stepper-btn-mini.btn-plus:hover {
+          background: #4338ca;
+        }
+        .stepper-btn-mini:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .stepper-num-val {
+          width: 28px;
+          text-align: center;
+          font-size: 13px;
+          font-weight: 800;
+          color: #1e1b4b;
+        }
+
+        .loop-row-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          background: rgba(245, 245, 244, 0.9);
+          padding: 8px 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(231, 229, 228, 0.8);
+          margin-bottom: 6px;
+        }
+        .loop-row-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .loop-badge-tag {
+          padding: 3px 8px;
+          border-radius: 6px;
+          background: #e0e7ff;
+          color: #312e81;
+          font-weight: 800;
+          font-size: 11px;
+          border: 1px solid #c7d2fe;
+        }
+        .loop-desc-txt {
+          font-size: 12px;
+          color: #78716c;
+        }
+        .loop-desc-txt strong {
+          color: #292524;
+        }
+        .loop-flow-ctrl {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .loop-flow-ctrl label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #57534e;
+        }
+        .flow-box-mini {
+          display: flex;
+          align-items: center;
+          background: #ffffff;
+          border: 1px solid #d6d3d1;
+          border-radius: 8px;
+          padding: 2px 4px;
+        }
+        .flow-box-mini input {
+          width: 36px;
+          border: none;
+          background: transparent;
+          text-align: center;
+          font-size: 13px;
+          font-weight: 800;
+          color: #1c1917;
+          outline: none;
+        }
+        .flow-box-mini button {
+          width: 24px;
+          height: 24px;
+          border: none;
+          background: transparent;
+          border-radius: 4px;
+          font-size: 13px;
+          font-weight: 800;
+          color: #57534e;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .flow-box-mini button:hover {
+          background: #f5f5f4;
+        }
+
+        .rooms-add-bar {
+          padding: 12px 20px;
+          background: #f5f5f4;
+          border-top: 1px solid #e7e5e4;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+        .btn-dashed-add {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 10px;
+          background: #ffffff;
+          border: 2px dashed #a5b4fc;
+          color: #312e81;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .btn-dashed-add:hover {
+          border-color: #4f46e5;
+          background: #eef2ff;
+        }
+        .btn-dashed-add svg {
+          width: 16px;
+          height: 16px;
+          fill: currentColor;
+        }
+        .quick-tags-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .quick-tags-lbl {
+          font-size: 11px;
+          color: #a8a29e;
+        }
+        .quick-tag-chip {
+          background: #ffffff;
+          border: 1px solid #d6d3d1;
+          padding: 4px 10px;
+          border-radius: 7px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #44403c;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .quick-tag-chip:hover {
+          background: #e7e5e4;
+          color: #1c1917;
+        }
+
+        .rooms-modal-footer {
+          padding: 14px 20px;
+          background: #ffffff;
+          border-top: 1px solid #e7e5e4;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+        }
+        .footer-note {
+          font-size: 12px;
+          color: #78716c;
+        }
+        .footer-btns {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .btn-footer-primary {
+          padding: 9px 22px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 700;
+          background: #3f4773;
+          color: #ffffff;
+          border: none;
+          cursor: pointer;
+          box-shadow: 0 4px 10px rgba(63, 71, 115, 0.3);
+          transition: all 0.2s ease;
+        }
+        .btn-footer-primary:hover {
+          background: #31385e;
+          transform: translateY(-1px);
+        }
+        .btn-footer-secondary {
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 600;
+          background: transparent;
+          color: #57534e;
+          border: none;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .btn-footer-secondary:hover {
+          background: #f5f5f4;
+          color: #1c1917;
+        }
+
+        .toast-popup {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: #1c1917;
+          color: #ffffff;
+          padding: 12px 20px;
+          border-radius: 16px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+          font-size: 13px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          z-index: 100000;
+          transform: translateY(100px);
+          opacity: 0;
+          transition: all 0.3s ease;
+        }
+        .toast-popup.show {
+          transform: translateY(0);
+          opacity: 1;
+        }
+        .toast-icon {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: rgba(34, 197, 94, 0.2);
+          color: #4ade80;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+        }
+</style>
 
       <div class="card-container">
         <!-- 1. GŁÓWNY NAGŁÓWEK -->
         <div class="main-header">
-          <div class="menu-btn" title="Opcje rozdzielacza">
+          <div class="menu-btn" id="btn-manifold-menu" title="Otwórz konfigurację rozdzielacza">
             <svg viewBox="0 0 24 24"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
           </div>
           <div class="title-block">
@@ -791,7 +1400,11 @@ class UnderfloorHeatingCard extends HTMLElement {
               <span class="status-badge" id="card-status-badge">
                 <span style="font-size:8px;">●</span> <span id="card-status-txt">Zrównoważony hydraulicznie</span>
               </span>
+              <button class="header-action-btn" id="btn-config-rooms" title="Konfiguruj strefy i rotametry">
+                ⚙️ Konfiguracja pętli (Pomieszczenia)
+              </button>
             </div>
+          </div>
             <div class="subtitle-row" id="card-subtitle">
               Lokalizacja: Kotłownia / Parter • Posadzka bazowa: Wylewka anhydrytowa (45 mm, λ = 1.8 W/(m·K))
             </div>
@@ -918,6 +1531,96 @@ class UnderfloorHeatingCard extends HTMLElement {
           </div>
         </div>
       </div>
+
+      <!-- MODAL ROOM-FIRST KONFIGURACJA POMIESZCZEŃ I PĘTLI -->
+      <div class="rooms-modal-overlay" id="rooms-config-modal">
+        <div class="rooms-modal-container">
+          <div class="modal-top-bar">
+            <div class="modal-top-left">
+              <button class="modal-icon-btn" id="rooms-modal-close" title="Zamknij">
+                <svg viewBox="0 0 24 24"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
+              </button>
+              <div>
+                <h2 class="modal-title" id="rooms-modal-title">Konfiguracja pętli – Rozdzielacz Parter</h2>
+                <p class="modal-subtitle">Grupuj pętle według pomieszczeń, aby szybciej skonfigurować przepływy</p>
+              </div>
+            </div>
+            <button class="modal-icon-btn" id="rooms-modal-help-btn" title="Pomoc">
+              <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,16.5H13V18.5H11V16.5M12,7A3,3 0 0,0 9,10H11A1,1 0 0,1 12,9A1,1 0 0,1 13,10C13,11.5 10.75,11.25 10.75,13.5H12.75C12.75,12 15,11.75 15,10A3,3 0 0,0 12,7Z"/></svg>
+            </button>
+          </div>
+
+          <div class="rooms-sticky-summary">
+            <div class="summary-stat-group">
+              <div class="summary-col">
+                <span class="summary-label">ZAJĘTE SEKCJE (PĘTLE)</span>
+                <div class="summary-val-row">
+                  <span class="summary-num" id="rm-total-loops">0</span>
+                  <span class="summary-sub" id="rm-max-loops">/ 10 dostępnych</span>
+                </div>
+              </div>
+              <div class="summary-sep"></div>
+              <div class="summary-col">
+                <span class="summary-label">CAŁKOWITA POWIERZCHNIA</span>
+                <div class="summary-val-row">
+                  <span class="summary-num" id="rm-total-area">0</span>
+                  <span class="summary-sub">m²</span>
+                </div>
+              </div>
+              <div class="summary-sep"></div>
+              <div class="summary-col">
+                <span class="summary-label">SUMA PRZEPŁYWÓW</span>
+                <div class="summary-val-row">
+                  <span class="summary-num text-emerald" id="rm-total-flow">0.0</span>
+                  <span class="summary-sub">l/min</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="slots-visual-box">
+              <div class="slots-dots-container" id="rm-slots-container"></div>
+              <span class="slots-status-text" id="rm-slots-status">Rozdzielacz: 10-obwodowy</span>
+            </div>
+          </div>
+
+          <div class="rooms-help-banner" id="rm-help-banner" style="display:none;">
+            <div>
+              <strong>Wskazówka:</strong> Dodaj pomieszczenie (np. <em>Salon</em>), wpisz jego łączny metraż i wybierz wylewkę. Następnie kliknij <strong>+</strong> przy liczbie pętli, jeśli w tym pomieszczeniu ułożono więcej niż jeden obwód grzewczy.
+            </div>
+            <button class="help-close-btn" id="rm-help-close">OK</button>
+          </div>
+
+          <div class="rooms-list-scrollable" id="rm-rooms-list"></div>
+
+          <div class="rooms-add-bar">
+            <button class="btn-dashed-add" id="rm-add-room-btn">
+              <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+              Dodaj pomieszczenie
+            </button>
+            <div class="quick-tags-row">
+              <span class="quick-tags-lbl">Szybkie dodanie:</span>
+              <button class="quick-tag-chip" id="tag-wc">+ WC</button>
+              <button class="quick-tag-chip" id="tag-bath">+ Łazienka</button>
+              <button class="quick-tag-chip" id="tag-bed">+ Sypialnia</button>
+              <button class="quick-tag-chip" id="tag-hall">+ Korytarz</button>
+            </div>
+          </div>
+
+          <div class="rooms-modal-footer">
+            <div class="footer-note">Wszystkie zmiany są przeliczane na bieżąco.</div>
+            <div class="footer-btns">
+              <button class="btn-footer-secondary" id="rm-btn-reset">Przywróć domyślne</button>
+              <button class="btn-footer-primary" id="rm-btn-save">Zatwierdź</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast Powiadomienie -->
+      <div class="toast-popup" id="card-toast">
+        <span class="toast-icon" id="card-toast-icon">✓</span>
+        <span class="toast-msg" id="card-toast-msg">Zapisano konfigurację!</span>
+      </div>
     `;
 
     // Podpięcie modala
@@ -925,6 +1628,35 @@ class UnderfloorHeatingCard extends HTMLElement {
     const modalSave = this.shadowRoot.getElementById("modal-btn-save");
     if (modalCancel) modalCancel.onclick = () => this._closeModal();
     if (modalSave) modalSave.onclick = () => this._saveModal();
+
+    // Podpięcie modala konfiguracji pomieszczeń
+    const btnMenu = this.shadowRoot.getElementById("btn-manifold-menu");
+    const btnCfgRooms = this.shadowRoot.getElementById("btn-config-rooms");
+    const rmClose = this.shadowRoot.getElementById("rooms-modal-close");
+    const rmHelpBtn = this.shadowRoot.getElementById("rooms-modal-help-btn");
+    const rmHelpClose = this.shadowRoot.getElementById("rm-help-close");
+    const rmAddBtn = this.shadowRoot.getElementById("rm-add-room-btn");
+    const rmResetBtn = this.shadowRoot.getElementById("rm-btn-reset");
+    const rmSaveBtn = this.shadowRoot.getElementById("rm-btn-save");
+
+    if (btnMenu) btnMenu.onclick = () => this._openRoomsConfigModal();
+    if (btnCfgRooms) btnCfgRooms.onclick = () => this._openRoomsConfigModal();
+    if (rmClose) rmClose.onclick = () => this._closeRoomsConfigModal();
+    if (rmHelpBtn) rmHelpBtn.onclick = () => this._toggleHelp();
+    if (rmHelpClose) rmHelpClose.onclick = () => this._toggleHelp();
+    if (rmAddBtn) rmAddBtn.onclick = () => this._addRoom();
+    if (rmResetBtn) rmResetBtn.onclick = () => this._resetRoomsToDefault();
+    if (rmSaveBtn) rmSaveBtn.onclick = () => this._saveRoomsConfig();
+
+    const tagWc = this.shadowRoot.getElementById("tag-wc");
+    const tagBath = this.shadowRoot.getElementById("tag-bath");
+    const tagBed = this.shadowRoot.getElementById("tag-bed");
+    const tagHall = this.shadowRoot.getElementById("tag-hall");
+    if (tagWc) tagWc.onclick = () => this._addQuickRoom("WC", 4, "Anhydrytowa (samopoziomująca)", [1.0]);
+    if (tagBath) tagBath.onclick = () => this._addQuickRoom("Łazienka", 9, "Domyślna rozdzielacza", [1.8]);
+    if (tagBed) tagBed.onclick = () => this._addQuickRoom("Sypialnia", 14, "Domyślna rozdzielacza", [1.5]);
+    if (tagHall) tagHall.onclick = () => this._addQuickRoom("Korytarz", 8, "Domyślna rozdzielacza", [1.2]);
+
 
     this.updateCard();
   }
@@ -1259,6 +1991,485 @@ class UnderfloorHeatingCard extends HTMLElement {
     this._closeModal();
     this.updateCard();
   }
+
+  // =========================================================================
+  // METODY OBSŁUGI ROOM-FIRST KONFIGURATORA POMIESZCZEŃ I PĘTLI
+  // =========================================================================
+
+  _initRoomsConfig() {
+    if (this._roomsConfig && this._roomsConfig.length > 0) return;
+
+    if (this._currentLoops && this._currentLoops.length > 0) {
+      const roomMap = new Map();
+      this._currentLoops.forEach(l => {
+        const raw = l.room || "Strefa";
+        const rName = raw.split("-")[0].trim() || raw;
+        if (!roomMap.has(rName)) {
+          roomMap.set(rName, {
+            id: "room-" + roomMap.size,
+            name: rName,
+            area: 0,
+            screed: l.screed === "cement" ? "Cementowa (tradycyjna)" : (l.screed === "anhydrite" ? "Anhydrytowa (samopoziomująca)" : "Domyślna rozdzielacza"),
+            loops: [],
+          });
+        }
+        const r = roomMap.get(rName);
+        r.area = +(r.area + (parseFloat(l.area_m2) || 15.0)).toFixed(1);
+        r.loops.push({ flow: parseFloat(l.flow_lmin) || 1.5 });
+      });
+      this._roomsConfig = Array.from(roomMap.values());
+    } else {
+      this._roomsConfig = [
+        {
+          id: 'room-1',
+          name: 'Salon',
+          area: 30,
+          screed: 'Domyślna rozdzielacza',
+          loops: [{ flow: 1.5 }, { flow: 1.5 }]
+        },
+        {
+          id: 'room-2',
+          name: 'Kuchnia',
+          area: 15,
+          screed: 'Domyślna rozdzielacza',
+          loops: [{ flow: 1.5 }]
+        },
+        {
+          id: 'room-3',
+          name: 'Łazienka',
+          area: 8,
+          screed: 'Anhydrytowa (samopoziomująca)',
+          loops: [{ flow: 1.8 }]
+        },
+        {
+          id: 'room-4',
+          name: 'WC',
+          area: 3.5,
+          screed: 'Domyślna rozdzielacza',
+          loops: [{ flow: 1.0 }]
+        }
+      ];
+    }
+  }
+
+  _openRoomsConfigModal() {
+    this._initRoomsConfig();
+    this._renderRoomsModal();
+    const modal = this.shadowRoot.getElementById("rooms-config-modal");
+    if (modal) modal.style.display = "flex";
+  }
+
+  _closeRoomsConfigModal() {
+    const modal = this.shadowRoot.getElementById("rooms-config-modal");
+    if (modal) modal.style.display = "none";
+  }
+
+  _getTotalRoomsLoops() {
+    if (!this._roomsConfig) return 0;
+    return this._roomsConfig.reduce((acc, r) => acc + (r.loops ? r.loops.length : 0), 0);
+  }
+
+  _renderRoomsModal() {
+    const container = this.shadowRoot.getElementById("rm-rooms-list");
+    if (!container || !this._roomsConfig) return;
+    container.innerHTML = "";
+
+    const screedTypes = [
+      "Domyślna rozdzielacza",
+      "Cementowa (tradycyjna)",
+      "Anhydrytowa (samopoziomująca)",
+      "Suchy jastrych (płyty)"
+    ];
+
+    let globalLoopIdx = 1;
+    let totalArea = 0;
+    let totalFlow = 0;
+
+    this._roomsConfig.forEach((room, roomIdx) => {
+      totalArea += parseFloat(room.area) || 0;
+      const loopsCnt = room.loops ? room.loops.length : 1;
+      const areaPerLoop = (parseFloat(room.area) || 0) / loopsCnt;
+
+      let loopsHtml = "";
+      if (room.loops) {
+        room.loops.forEach((loop, lIdx) => {
+          const curLoopNum = globalLoopIdx++;
+          const flow = parseFloat(loop.flow) || 1.5;
+          totalFlow += flow;
+
+          const desc = loopsCnt > 1
+            ? `Obwód ${lIdx + 1} w: <strong>${room.name || "Bez nazwy"}</strong> (~${areaPerLoop.toFixed(1)} m²)`
+            : `Obwód główny (~${areaPerLoop.toFixed(1)} m²)`;
+
+          loopsHtml += `
+            <div class="loop-row-card">
+              <div class="loop-row-left">
+                <span class="loop-badge-tag">Pętla #${curLoopNum}</span>
+                <span class="loop-desc-txt">${desc}</span>
+              </div>
+              <div class="loop-flow-ctrl">
+                <label>Przepływ rotametru:</label>
+                <div class="flow-box-mini">
+                  <button type="button" class="btn-step-flow" data-ridx="${roomIdx}" data-lidx="${lIdx}" data-delta="-0.1">−</button>
+                  <input type="number" step="0.1" min="0" max="6" value="${flow.toFixed(1)}" class="inp-flow-val" data-ridx="${roomIdx}" data-lidx="${lIdx}">
+                  <span style="font-size:11px;color:#78716c;margin-right:4px;">l/min</span>
+                  <button type="button" class="btn-step-flow" data-ridx="${roomIdx}" data-lidx="${lIdx}" data-delta="0.1">+</button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      const screedOpts = screedTypes.map(t =>
+        `<option value="${t}" ${room.screed === t ? "selected" : ""}>${t}</option>`
+      ).join("");
+
+      const roomCard = document.createElement("div");
+      roomCard.className = "room-card";
+      roomCard.innerHTML = `
+        <div class="room-card-head">
+          <div class="room-head-left">
+            <span class="room-card-idx">${roomIdx + 1}</span>
+            <span class="room-card-title-badge">Pomieszczenie</span>
+          </div>
+          <button class="room-delete-btn" data-ridx="${roomIdx}" title="Usuń pomieszczenie">
+            <svg viewBox="0 0 24 24"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
+          </button>
+        </div>
+        <div class="room-grid">
+          <div class="room-field-group">
+            <label>Nazwa pomieszczenia*</label>
+            <input type="text" value="${room.name}" class="inp-room-name" data-ridx="${roomIdx}" placeholder="np. Salon, Kuchnia...">
+          </div>
+          <div class="room-field-group">
+            <label>Powierzchnia* (m²)</label>
+            <input type="number" step="0.5" min="1" value="${room.area}" class="inp-room-area" data-ridx="${roomIdx}">
+          </div>
+          <div class="room-field-group">
+            <label>Rodzaj wylewki (posadzka)</label>
+            <select class="sel-room-screed" data-ridx="${roomIdx}">
+              ${screedOpts}
+            </select>
+          </div>
+        </div>
+        <div class="room-loops-section">
+          <div class="loops-stepper-header">
+            <div class="loops-stepper-label">
+              <svg viewBox="0 0 24 24"><path d="M4,4V9H4.58L6.5,7.08C7.9,5.68 9.85,4.8 12,4.8A7.2,7.2 0 0,1 19.2,12C19.2,13.75 18.57,15.35 17.53,16.59L18.95,18C20.35,16.38 21.2,14.29 21.2,12A9.2,9.2 0 0,0 12,2.8C9.3,2.8 6.88,3.9 5.12,5.68L4,4.56V4H4M4,12C4,14.7 5.1,17.12 6.88,18.88L8,20H3V15H3.58L5.5,16.92C6.9,18.32 8.85,19.2 11,19.2A7.2,7.2 0 0,0 18.2,12C18.2,10.25 17.57,8.65 16.53,7.41L15.11,6C13.71,7.62 12.86,9.71 12.86,12A9.2,9.2 0 0,1 4,12Z"/></svg>
+              <span>Liczba pętli w tym pomieszczeniu</span>
+            </div>
+            <div class="stepper-control-box">
+              <button type="button" class="stepper-btn-mini btn-room-loops-step" data-ridx="${roomIdx}" data-delta="-1" ${loopsCnt <= 1 ? "disabled" : ""}>−</button>
+              <span class="stepper-num-val">${loopsCnt}</span>
+              <button type="button" class="stepper-btn-mini btn-plus btn-room-loops-step" data-ridx="${roomIdx}" data-delta="1">+</button>
+            </div>
+          </div>
+          <div class="loops-rows-container">
+            ${loopsHtml}
+          </div>
+        </div>
+      `;
+      container.appendChild(roomCard);
+    });
+
+    // Podpięcie eventów pól
+    container.querySelectorAll(".inp-room-name").forEach(inp => {
+      inp.oninput = (e) => {
+        const ridx = parseInt(e.target.dataset.ridx);
+        this._roomsConfig[ridx].name = e.target.value;
+      };
+      inp.onchange = () => this._renderRoomsModal();
+    });
+
+    container.querySelectorAll(".inp-room-area").forEach(inp => {
+      inp.oninput = (e) => {
+        const ridx = parseInt(e.target.dataset.ridx);
+        this._roomsConfig[ridx].area = parseFloat(e.target.value) || 0;
+      };
+      inp.onchange = () => this._renderRoomsModal();
+    });
+
+    container.querySelectorAll(".sel-room-screed").forEach(sel => {
+      sel.onchange = (e) => {
+        const ridx = parseInt(e.target.dataset.ridx);
+        this._roomsConfig[ridx].screed = e.target.value;
+        this._renderRoomsModal();
+      };
+    });
+
+    container.querySelectorAll(".room-delete-btn").forEach(btn => {
+      btn.onclick = (e) => {
+        const ridx = parseInt(e.currentTarget.dataset.ridx);
+        this._removeRoom(ridx);
+      };
+    });
+
+    container.querySelectorAll(".btn-room-loops-step").forEach(btn => {
+      btn.onclick = (e) => {
+        const ridx = parseInt(e.currentTarget.dataset.ridx);
+        const delta = parseInt(e.currentTarget.dataset.delta);
+        this._changeRoomLoopCount(ridx, delta);
+      };
+    });
+
+    container.querySelectorAll(".btn-step-flow").forEach(btn => {
+      btn.onclick = (e) => {
+        const ridx = parseInt(e.currentTarget.dataset.ridx);
+        const lidx = parseInt(e.currentTarget.dataset.lidx);
+        const delta = parseFloat(e.currentTarget.dataset.delta);
+        this._adjustRoomLoopFlow(ridx, lidx, delta);
+      };
+    });
+
+    container.querySelectorAll(".inp-flow-val").forEach(inp => {
+      inp.onchange = (e) => {
+        const ridx = parseInt(e.target.dataset.ridx);
+        const lidx = parseInt(e.target.dataset.lidx);
+        this._updateRoomLoopFlowInput(ridx, lidx, e.target.value);
+      };
+    });
+
+    // Aktualizacja górnego paska sticky
+    const totalLoops = globalLoopIdx - 1;
+    const elLoops = this.shadowRoot.getElementById("rm-total-loops");
+    const elArea = this.shadowRoot.getElementById("rm-total-area");
+    const elFlow = this.shadowRoot.getElementById("rm-total-flow");
+
+    if (elLoops) elLoops.textContent = totalLoops;
+    if (elArea) elArea.textContent = totalArea.toFixed(1).replace('.0', '');
+    if (elFlow) elFlow.textContent = totalFlow.toFixed(1);
+
+    this._renderManifoldSlots(totalLoops);
+  }
+
+  _renderManifoldSlots(activeLoops) {
+    const slotsContainer = this.shadowRoot.getElementById("rm-slots-container");
+    const statusText = this.shadowRoot.getElementById("rm-slots-status");
+    if (!slotsContainer || !statusText) return;
+    slotsContainer.innerHTML = "";
+
+    const maxSlots = 10;
+    for (let i = 1; i <= maxSlots; i++) {
+      const isOccupied = i <= activeLoops;
+      const slot = document.createElement("div");
+      slot.className = `slot-dot ${isOccupied ? "occupied" : "free"}`;
+      slot.textContent = i;
+      slot.title = isOccupied ? `Sekcja ${i}: Zajęta` : `Sekcja ${i}: Wolna`;
+      slotsContainer.appendChild(slot);
+    }
+
+    if (activeLoops === maxSlots) {
+      statusText.textContent = "Wszystkie 10 sekcji rozdzielacza obsadzone";
+      statusText.style.color = "#34d399";
+    } else if (activeLoops > maxSlots) {
+      statusText.textContent = `Przekroczono liczbę sekcji o ${activeLoops - maxSlots}!`;
+      statusText.style.color = "#f87171";
+    } else {
+      statusText.textContent = `Wolne sekcje na belce: ${maxSlots - activeLoops}`;
+      statusText.style.color = "#c7d2fe";
+    }
+  }
+
+  _changeRoomLoopCount(roomIdx, delta) {
+    const cur = this._getTotalRoomsLoops();
+    if (delta > 0 && cur >= 10) {
+      this._showToast("Rozdzielacz ma maksymalnie 10 sekcji!", true);
+      return;
+    }
+    const r = this._roomsConfig[roomIdx];
+    if (!r.loops) r.loops = [];
+    if (delta > 0) {
+      const lastFlow = r.loops.length > 0 ? r.loops[r.loops.length - 1].flow : 1.5;
+      r.loops.push({ flow: lastFlow });
+    } else if (delta < 0 && r.loops.length > 1) {
+      r.loops.pop();
+    }
+    this._renderRoomsModal();
+  }
+
+  _adjustRoomLoopFlow(roomIdx, loopIdx, delta) {
+    const r = this._roomsConfig[roomIdx];
+    let cur = parseFloat(r.loops[loopIdx].flow) || 1.5;
+    let next = Math.max(0, Math.min(6, +(cur + delta).toFixed(1)));
+    r.loops[loopIdx].flow = next;
+    this._renderRoomsModal();
+  }
+
+  _updateRoomLoopFlowInput(roomIdx, loopIdx, val) {
+    let parsed = parseFloat(String(val).replace(',', '.'));
+    if (isNaN(parsed) || parsed < 0) parsed = 0;
+    if (parsed > 6) parsed = 6;
+    this._roomsConfig[roomIdx].loops[loopIdx].flow = +parsed.toFixed(1);
+    this._renderRoomsModal();
+  }
+
+  _addRoom() {
+    if (this._getTotalRoomsLoops() >= 10) {
+      this._showToast("Wszystkie 10 sekcji na rozdzielaczu jest już zajęte.", true);
+      return;
+    }
+    this._roomsConfig.push({
+      id: "room-" + Date.now(),
+      name: "Nowe pomieszczenie",
+      area: 12,
+      screed: "Domyślna rozdzielacza",
+      loops: [{ flow: 1.5 }]
+    });
+    this._renderRoomsModal();
+    const c = this.shadowRoot.getElementById("rm-rooms-list");
+    if (c) setTimeout(() => c.scrollTo({ top: c.scrollHeight, behavior: "smooth" }), 50);
+  }
+
+  _addQuickRoom(name, area, screed, flows) {
+    if (this._getTotalRoomsLoops() + flows.length > 10) {
+      this._showToast("Brak wolnych sekcji na rozdzielaczu (max 10).", true);
+      return;
+    }
+    this._roomsConfig.push({
+      id: "room-" + Date.now(),
+      name: name,
+      area: area,
+      screed: screed,
+      loops: flows.map(f => ({ flow: f }))
+    });
+    this._renderRoomsModal();
+    const c = this.shadowRoot.getElementById("rm-rooms-list");
+    if (c) setTimeout(() => c.scrollTo({ top: c.scrollHeight, behavior: "smooth" }), 50);
+  }
+
+  _removeRoom(roomIdx) {
+    if (this._roomsConfig.length <= 1) {
+      this._showToast("Musi pozostać przynajmniej jedno pomieszczenie.", true);
+      return;
+    }
+    this._roomsConfig.splice(roomIdx, 1);
+    this._renderRoomsModal();
+  }
+
+  _toggleHelp() {
+    const banner = this.shadowRoot.getElementById("rm-help-banner");
+    if (banner) {
+      banner.style.display = banner.style.display === "none" ? "flex" : "none";
+    }
+  }
+
+  _resetRoomsToDefault() {
+    this._roomsConfig = [
+      {
+        id: 'room-1',
+        name: 'Salon',
+        area: 30,
+        screed: 'Domyślna rozdzielacza',
+        loops: [{ flow: 1.5 }, { flow: 1.5 }]
+      },
+      {
+        id: 'room-2',
+        name: 'Kuchnia',
+        area: 15,
+        screed: 'Domyślna rozdzielacza',
+        loops: [{ flow: 1.5 }]
+      },
+      {
+        id: 'room-3',
+        name: 'Łazienka',
+        area: 8,
+        screed: 'Anhydrytowa (samopoziomująca)',
+        loops: [{ flow: 1.8 }]
+      },
+      {
+        id: 'room-4',
+        name: 'WC',
+        area: 3.5,
+        screed: 'Domyślna rozdzielacza',
+        loops: [{ flow: 1.0 }]
+      }
+    ];
+    this._renderRoomsModal();
+    this._showToast("Przywrócono układ początkowy.");
+  }
+
+  _syncCurrentLoopsFromRooms() {
+    const newLoops = [];
+    let sec = 1;
+    this._roomsConfig.forEach(room => {
+      const loopsCnt = room.loops ? room.loops.length : 1;
+      const areaPer = (parseFloat(room.area) || 0) / loopsCnt;
+
+      room.loops.forEach((lp, lIdx) => {
+        const flow = parseFloat(lp.flow) || 1.5;
+        const pipeLen = Math.round(areaPer * 6.5 + 4.0);
+        const dp = +(flow * 1.8 + pipeLen * 0.08).toFixed(1);
+        let status = "Optymalny";
+        if (flow > 2.2) status = "Przewymiarowany";
+        else if (flow < 1.0) status = "Zbyt mały";
+
+        const title = loopsCnt > 1 ? `${room.name} - Obwód ${lIdx + 1}` : room.name;
+
+        newLoops.push({
+          id: `petla_parter_${sec}`,
+          section: sec++,
+          room: title,
+          area_m2: +areaPer.toFixed(1),
+          flow_lmin: flow,
+          flow_lh: Math.round(flow * 60),
+          length_m: pipeLen,
+          dp_kpa: dp,
+          screed: room.screed && room.screed !== "Domyślna rozdzielacza" ? (room.screed.includes("Cement") ? "cement" : "anhydrite") : "default",
+          screed_txt: room.screed === "Domyślna rozdzielacza" ? "Domyślna (Anh.)" : room.screed,
+          status: status,
+        });
+      });
+    });
+
+    this._currentLoops = newLoops;
+    if (this._selectedLoopIndex >= this._currentLoops.length) {
+      this._selectedLoopIndex = 0;
+    }
+  }
+
+  _saveRoomsConfig() {
+    const totalLoops = this._getTotalRoomsLoops();
+
+    if (this._hass) {
+      const mId = this._activeManifoldId || "rozdzielacz_parter";
+      this._hass.callService("underfloor_heating", "save_manifold_configuration", {
+        manifold_id: mId,
+        rooms: this._roomsConfig,
+      }).catch(err => {
+        console.warn("Błąd zapisu konfiguracji w HA:", err);
+      });
+    }
+
+    this._syncCurrentLoopsFromRooms();
+    this._closeRoomsConfigModal();
+    this.updateCard();
+    this._showToast(`Zapisano pomyślnie! Skonfigurowano ${this._roomsConfig.length} pomieszczeń (${totalLoops} pętli).`);
+  }
+
+  _showToast(msg, isError = false) {
+    const toast = this.shadowRoot.getElementById("card-toast");
+    const txt = this.shadowRoot.getElementById("card-toast-msg");
+    const icon = this.shadowRoot.getElementById("card-toast-icon");
+    if (!toast || !txt) return;
+
+    txt.textContent = msg;
+    if (isError) {
+      icon.textContent = "!";
+      icon.style.background = "rgba(244, 63, 94, 0.2)";
+      icon.style.color = "#fb7185";
+    } else {
+      icon.textContent = "✓";
+      icon.style.background = "rgba(34, 197, 94, 0.2)";
+      icon.style.color = "#4ade80";
+    }
+
+    toast.classList.add("show");
+    setTimeout(() => {
+      toast.classList.remove("show");
+    }, 3200);
+  }
+
 }
 
 customElements.define("underfloor-heating-card", UnderfloorHeatingCard);

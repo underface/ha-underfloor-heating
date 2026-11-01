@@ -141,3 +141,21 @@ update_loop:
             - label: PEX/PE-RT 20x2.0 mm
               value: pex_20x2
 
+
+save_manifold_configuration:
+  name: Zapisz konfigurację rozdzielacza
+  description: Zapisuje pełną konfigurację pomieszczeń i pętli z interaktywnego panelu Lovelace/modala.
+  fields:
+    manifold_id:
+      name: Identyfikator rozdzielacza
+      description: Unikalny identyfikator rozdzielacza (np. rozdzielacz_parter).
+      required: true
+      example: rozdzielacz_parter
+      selector:
+        text:
+    rooms:
+      name: Lista pomieszczeń
+      description: Zbiór pomieszczeń z przypisanymi pętlami, metrażami i nastawami rotametrów.
+      required: true
+      selector:
+        object:
