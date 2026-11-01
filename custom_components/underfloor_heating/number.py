@@ -27,8 +27,10 @@ from .const import (
     ATTR_ROTAMETER_FLOW_LH,
     CONF_LOOPS,
     CONF_MANIFOLDS,
+    CONF_ZONES,
     DOMAIN,
 )
+from .helpers import get_loop_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,13 +42,14 @@ async def async_setup_entry(
 ) -> None:
     """Konfiguracja encji numerycznych rotametrów."""
     data = hass.data[DOMAIN][entry.entry_id]
+    zones_data = data.get(CONF_ZONES, {})
     entities: list[NumberEntity] = []
 
     for loop_id, l_data in data[CONF_LOOPS].items():
         # Główny suwak w litrach na godzinę (l/h)
-        entities.append(RotameterFlowNumberLH(hass, entry, loop_id, l_data))
+        entities.append(RotameterFlowNumberLH(hass, entry, loop_id, l_data, zones_data))
         # Pomocniczy suwak w litrach na minutę (l/min) - standardowy odczyt ze skali rotametru
-        entities.append(RotameterFlowNumberLMin(hass, entry, loop_id, l_data))
+        entities.append(RotameterFlowNumberLMin(hass, entry, loop_id, l_data, zones_data))
 
     async_add_entities(entities)
 
@@ -58,17 +61,13 @@ class BaseRotameterNumber(NumberEntity):
     _attr_should_poll = False
     _attr_mode = NumberMode.BOX
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, suffix: str) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, suffix: str, zones_data: dict | None = None) -> None:
         self.hass = hass
         self.entry = entry
         self.loop_id = loop_id
         self.l_data = l_data
         self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_number_{loop_id}_{suffix}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"loop_{loop_id}")},
-            name=f"Pętla: {l_data.get('name', loop_id)}",
-            model="Pętla Ogrzewania Podłogowego",
-        )
+        self._attr_device_info = get_loop_device_info(loop_id, l_data, zones_data)
 
     async def async_added_to_hass(self) -> None:
         """Subskrypcja aktualizacji stanu."""
@@ -101,8 +100,8 @@ class RotameterFlowNumberLH(BaseRotameterNumber):
     _attr_native_step = 1.0
     _attr_icon = "mdi:water-pump"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
-        super().__init__(hass, entry, loop_id, l_data, "flow_lh")
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
+        super().__init__(hass, entry, loop_id, l_data, "flow_lh", zones_data)
 
     @property
     def native_value(self) -> float:
@@ -136,8 +135,8 @@ class RotameterFlowNumberLMin(BaseRotameterNumber):
     _attr_native_step = 0.1
     _attr_icon = "mdi:gauge"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
-        super().__init__(hass, entry, loop_id, l_data, "flow_lmin")
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
+        super().__init__(hass, entry, loop_id, l_data, "flow_lmin", zones_data)
 
     @property
     def native_value(self) -> float:

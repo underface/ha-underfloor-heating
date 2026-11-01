@@ -18,8 +18,15 @@ from typing import Any, Dict
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 import voluptuous as vol
+
+from .helpers import (
+    clean_loop_name,
+    get_loop_device_info,
+    get_manifold_device_info,
+    get_zone_device_info,
+)
 
 from .const import (
     ATTR_APPROACH_LENGTH,
@@ -127,6 +134,109 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator_data["rotameter_flows"][loop_id] = float(init_flow)
 
     hass.data[DOMAIN][entry.entry_id] = coordinator_data
+
+    # Synchronizacja i budowa 3-poziomowej hierarchii w Rejestrze Urządzeń HA:
+    # 1 - Rozdzielacz (Główny)
+    #   └── 2 - Pomieszczenie (Połączone przez Rozdzielacz)
+    #         └── 3 - Pętle (Połączone przez Pomieszczenie)
+    dev_reg = dr.async_get(hass)
+
+    # Poziom 1: Rozdzielacze
+    manifold_devs = {}
+    for manifold_id, m_data in coordinator_data[CONF_MANIFOLDS].items():
+        m_name = m_data.get("name", f"Rozdzielacz {manifold_id}")
+        m_area = m_data.get("location", "Kotłownia")
+        m_dev = dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"manifold_{manifold_id}")},
+            name=m_name,
+            manufacturer="Podłogówka",
+            model="Rozdzielacz Ogrzewania Podłogowego",
+            suggested_area=m_area,
+        )
+        try:
+            dev_reg.async_update_device(m_dev.id, name=m_name)
+        except Exception:
+            pass
+        manifold_devs[manifold_id] = m_dev
+
+    default_m_id = list(coordinator_data[CONF_MANIFOLDS].keys())[0] if coordinator_data[CONF_MANIFOLDS] else "parter"
+    default_m_dev = manifold_devs.get(default_m_id)
+
+    # Poziom 2: Pomieszczenia (Strefy)
+    zone_devs = {}
+    for zone_id, z_data in coordinator_data[CONF_ZONES].items():
+        z_name = z_data.get("name", zone_id)
+        m_id = z_data.get("manifold_id") or default_m_id
+        parent_m = manifold_devs.get(m_id) or default_m_dev
+
+        z_dev = dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"zone_{zone_id}")},
+            name=f"Pomieszczenie: {z_name}",
+            manufacturer="Podłogówka",
+            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
+            suggested_area=z_name,
+            via_device=(DOMAIN, f"manifold_{m_id}"),
+        )
+        try:
+            update_kw = {"name": f"Pomieszczenie: {z_name}"}
+            if parent_m:
+                update_kw["via_device_id"] = parent_m.id
+            dev_reg.async_update_device(z_dev.id, **update_kw)
+        except Exception:
+            pass
+        zone_devs[zone_id] = z_dev
+
+    # Poziom 3: Pętle podłogówki
+    for loop_id, l_data in coordinator_data[CONF_LOOPS].items():
+        z_id = l_data.get("zone_id")
+        z_info = coordinator_data[CONF_ZONES].get(z_id, {})
+        room_name = l_data.get("zone_name") or z_info.get("name", "Strefa")
+        sec_num = l_data.get("section_number", 1)
+        clean_name = clean_loop_name(l_data.get("name", ""), sec_num, room_name)
+
+        parent_z = zone_devs.get(z_id)
+        m_id = l_data.get("manifold_id") or default_m_id
+
+        parent_via_tuple = (DOMAIN, f"zone_{z_id}") if z_id else (DOMAIN, f"manifold_{m_id}")
+
+        l_dev = dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"loop_{loop_id}")},
+            name=clean_name,
+            manufacturer="Podłogówka",
+            model="Pętla Ogrzewania Podłogowego",
+            suggested_area=room_name,
+            via_device=parent_via_tuple,
+        )
+        try:
+            update_kw = {"name": clean_name}
+            if parent_z:
+                update_kw["via_device_id"] = parent_z.id
+            elif default_m_dev:
+                update_kw["via_device_id"] = default_m_dev.id
+            dev_reg.async_update_device(l_dev.id, **update_kw)
+        except Exception:
+            pass
+
+    # Usunięcie starych lub osieroconych urządzeń z rejestru HA
+    try:
+        active_identifiers = set()
+        for m_id in coordinator_data[CONF_MANIFOLDS]:
+            active_identifiers.add((DOMAIN, f"manifold_{m_id}"))
+        for z_id in coordinator_data[CONF_ZONES]:
+            active_identifiers.add((DOMAIN, f"zone_{z_id}"))
+        for l_id in coordinator_data[CONF_LOOPS]:
+            active_identifiers.add((DOMAIN, f"loop_{l_id}"))
+
+        existing_devices = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
+        for dev in existing_devices:
+            if not any(ident in active_identifiers for ident in dev.identifiers):
+                _LOGGER.info("Usuwanie osieroconego urządzenia z rejestru HA: %s (%s)", dev.name, dev.id)
+                dev_reg.async_remove_device(dev.id)
+    except Exception as err:
+        _LOGGER.debug("Błąd czyszczenia osieroconych urządzeń: %s", err)
 
     # Rejestracja platform (sensor, number, binary_sensor)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

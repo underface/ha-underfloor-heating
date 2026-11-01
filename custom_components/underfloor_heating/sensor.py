@@ -57,6 +57,12 @@ from .const import (
     SCREED_TYPES,
     WATER_SPECIFIC_HEAT,
 )
+from .helpers import (
+    clean_loop_name,
+    get_loop_device_info,
+    get_manifold_device_info,
+    get_zone_device_info,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -86,11 +92,12 @@ async def async_setup_entry(
         entities.append(ZoneScreedInfoSensor(hass, entry, zone_id, z_data))
 
     # 3. Sensory dla pętli podłogówki (estymowana długość, opory, prędkości, status)
+    zones_data = data[CONF_ZONES]
     for loop_id, l_data in data[CONF_LOOPS].items():
-        entities.append(LoopEstimatedLengthSensor(hass, entry, loop_id, l_data))
-        entities.append(LoopPressureDropSensor(hass, entry, loop_id, l_data))
-        entities.append(LoopFlowVelocitySensor(hass, entry, loop_id, l_data))
-        entities.append(LoopBalancingStatusSensor(hass, entry, loop_id, l_data))
+        entities.append(LoopEstimatedLengthSensor(hass, entry, loop_id, l_data, zones_data))
+        entities.append(LoopPressureDropSensor(hass, entry, loop_id, l_data, zones_data))
+        entities.append(LoopFlowVelocitySensor(hass, entry, loop_id, l_data, zones_data))
+        entities.append(LoopBalancingStatusSensor(hass, entry, loop_id, l_data, zones_data))
 
     async_add_entities(entities)
 
@@ -140,12 +147,7 @@ class ManifoldTotalFlowSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"manifold_{manifold_id}_total_flow")
         self.manifold_id = manifold_id
         self.m_data = m_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"manifold_{manifold_id}")},
-            name=m_data.get("name", manifold_id),
-            model="Rozdzielacz Ogrzewania Podłogowego",
-            suggested_area=m_data.get("location", "Kotłownia"),
-        )
+        self._attr_device_info = get_manifold_device_info(manifold_id, m_data)
 
     @property
     def native_value(self) -> float:
@@ -177,9 +179,7 @@ class ManifoldMaxPressureDropSensor(BaseHeatingEntity):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, manifold_id: str, m_data: dict) -> None:
         super().__init__(hass, entry, f"manifold_{manifold_id}_max_dp")
         self.manifold_id = manifold_id
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"manifold_{manifold_id}")},
-        )
+        self._attr_device_info = get_manifold_device_info(manifold_id, m_data)
 
     @property
     def native_value(self) -> float:
@@ -212,9 +212,7 @@ class ManifoldStatusSensor(BaseHeatingEntity):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, manifold_id: str, m_data: dict) -> None:
         super().__init__(hass, entry, f"manifold_{manifold_id}_status")
         self.manifold_id = manifold_id
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"manifold_{manifold_id}")},
-        )
+        self._attr_device_info = get_manifold_device_info(manifold_id, m_data)
 
     @property
     def native_value(self) -> str:
@@ -278,12 +276,7 @@ class ZoneAreaSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_area")
         self.zone_id = zone_id
         self.z_data = z_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
-            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
-            suggested_area=z_data.get("name", zone_id),
-        )
+        self._attr_device_info = get_zone_device_info(zone_id, z_data)
 
     @property
     def native_value(self) -> float:
@@ -318,12 +311,7 @@ class ZoneTotalFlowSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_total_flow")
         self.zone_id = zone_id
         self.z_data = z_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
-            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
-            suggested_area=z_data.get("name", zone_id),
-        )
+        self._attr_device_info = get_zone_device_info(zone_id, z_data)
 
     @property
     def native_value(self) -> float:
@@ -374,12 +362,7 @@ class ZoneScreedInfoSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_screed_info")
         self.zone_id = zone_id
         self.z_data = z_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
-            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
-            suggested_area=z_data.get("name", zone_id),
-        )
+        self._attr_device_info = get_zone_device_info(zone_id, z_data)
 
     @property
     def native_value(self) -> str:
@@ -403,12 +386,7 @@ class ZoneHeatOutputSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_heat_output")
         self.zone_id = zone_id
         self.z_data = z_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
-            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
-            suggested_area=z_data.get("name", zone_id),
-        )
+        self._attr_device_info = get_zone_device_info(zone_id, z_data)
 
     @property
     def native_value(self) -> float:
@@ -446,12 +424,7 @@ class ZoneRequiredFlowSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_req_flow")
         self.zone_id = zone_id
         self.z_data = z_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
-            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
-            suggested_area=z_data.get("name", zone_id),
-        )
+        self._attr_device_info = get_zone_device_info(zone_id, z_data)
 
     @property
     def native_value(self) -> float:
@@ -488,12 +461,7 @@ class ZoneScreedInertiaSensor(BaseHeatingEntity):
         super().__init__(hass, entry, f"zone_{zone_id}_screed_inertia")
         self.zone_id = zone_id
         self.z_data = z_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"zone_{zone_id}")},
-            name=f"Pomieszczenie: {z_data.get('name', zone_id)}",
-            model=f"Strefa ({z_data.get('loops_count', 1)} obiegów)",
-            suggested_area=z_data.get("name", zone_id),
-        )
+        self._attr_device_info = get_zone_device_info(zone_id, z_data)
 
     @property
     def native_value(self) -> float:
@@ -538,15 +506,11 @@ class LoopEstimatedLengthSensor(BaseHeatingEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:tape-measure"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
         super().__init__(hass, entry, f"loop_{loop_id}_length")
         self.loop_id = loop_id
         self.l_data = l_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"loop_{loop_id}")},
-            name=f"Pętla: {l_data.get('name', loop_id)}",
-            model="Pętla Ogrzewania Podłogowego",
-        )
+        self._attr_device_info = get_loop_device_info(loop_id, l_data, zones_data)
 
     @property
     def native_value(self) -> float:
@@ -596,13 +560,11 @@ class LoopPressureDropSensor(BaseHeatingEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:gauge-low"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
         super().__init__(hass, entry, f"loop_{loop_id}_pressure_drop")
         self.loop_id = loop_id
         self.l_data = l_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"loop_{loop_id}")},
-        )
+        self._attr_device_info = get_loop_device_info(loop_id, l_data, zones_data)
 
     @property
     def native_value(self) -> float:
@@ -638,13 +600,11 @@ class LoopFlowVelocitySensor(BaseHeatingEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:speedometer"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
         super().__init__(hass, entry, f"loop_{loop_id}_velocity")
         self.loop_id = loop_id
         self.l_data = l_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"loop_{loop_id}")},
-        )
+        self._attr_device_info = get_loop_device_info(loop_id, l_data, zones_data)
 
     @property
     def native_value(self) -> float:
@@ -670,13 +630,11 @@ class LoopBalancingStatusSensor(BaseHeatingEntity):
     _attr_name = "Ocena regulacji pętli"
     _attr_icon = "mdi:scale-balance"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
         super().__init__(hass, entry, f"loop_{loop_id}_status")
         self.loop_id = loop_id
         self.l_data = l_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"loop_{loop_id}")},
-        )
+        self._attr_device_info = get_loop_device_info(loop_id, l_data, zones_data)
 
     @property
     def native_value(self) -> str:

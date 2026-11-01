@@ -41,6 +41,7 @@ from .const import (
     CONF_ZONES,
     DOMAIN,
 )
+from .helpers import get_loop_device_info, get_manifold_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ async def async_setup_entry(
 ) -> None:
     """Konfiguracja platformy sensorów binarnych."""
     data = hass.data[DOMAIN][entry.entry_id]
+    zones_data = data.get(CONF_ZONES, {})
     entities: list[BinarySensorEntity] = []
 
     # Sensory binarne dla rozdzielaczy
@@ -60,8 +62,8 @@ async def async_setup_entry(
 
     # Sensory binarne dla pętli
     for loop_id, l_data in data[CONF_LOOPS].items():
-        entities.append(LoopBalancedBinarySensor(hass, entry, loop_id, l_data))
-        entities.append(LoopIssueBinarySensor(hass, entry, loop_id, l_data))
+        entities.append(LoopBalancedBinarySensor(hass, entry, loop_id, l_data, zones_data))
+        entities.append(LoopIssueBinarySensor(hass, entry, loop_id, l_data, zones_data))
 
     async_add_entities(entities)
 
@@ -105,10 +107,7 @@ class ManifoldBalancedBinarySensor(BaseHeatingBinaryEntity):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, manifold_id: str, m_data: dict) -> None:
         super().__init__(hass, entry, f"manifold_{manifold_id}_is_balanced")
         self.manifold_id = manifold_id
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"manifold_{manifold_id}")},
-            name=m_data.get("name", manifold_id),
-        )
+        self._attr_device_info = get_manifold_device_info(manifold_id, m_data)
 
     @property
     def is_on(self) -> bool:
@@ -152,13 +151,11 @@ class LoopBalancedBinarySensor(BaseHeatingBinaryEntity):
     _attr_name = "Pętla zrównoważona"
     _attr_icon = "mdi:scale-balance"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
         super().__init__(hass, entry, f"loop_{loop_id}_is_balanced")
         self.loop_id = loop_id
         self.l_data = l_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"loop_{loop_id}")},
-        )
+        self._attr_device_info = get_loop_device_info(loop_id, l_data, zones_data)
 
     @property
     def is_on(self) -> bool:
@@ -201,13 +198,11 @@ class LoopIssueBinarySensor(BaseHeatingBinaryEntity):
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:alert-circle-outline"
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, loop_id: str, l_data: dict, zones_data: dict | None = None) -> None:
         super().__init__(hass, entry, f"loop_{loop_id}_has_issue")
         self.loop_id = loop_id
         self.l_data = l_data
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"loop_{loop_id}")},
-        )
+        self._attr_device_info = get_loop_device_info(loop_id, l_data, zones_data)
 
     @property
     def is_on(self) -> bool:
